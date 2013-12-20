@@ -135,6 +135,8 @@ enum adreno_gpurev {
 
 #define ADRENO_DISPATCH_CMDQUEUE_SIZE 128
 
+#define CMDQUEUE_NEXT(_i, _s) (((_i) + 1) % (_s))
+
 /**
  * struct adreno_dispatcher - container for the adreno GPU dispatcher
  * @mutex: Mutex to protect the structure
@@ -257,6 +259,7 @@ struct adreno_device {
 	unsigned int ram_cycles_lo;
 	unsigned int starved_ram_lo;
 	atomic_t halt;
+	struct dentry *ctx_d_debugfs;
 };
 
 /**
@@ -1153,8 +1156,12 @@ static inline void adreno_set_protected_registers(struct kgsl_device *device,
 
 #ifdef CONFIG_DEBUG_FS
 void adreno_debugfs_init(struct kgsl_device *device);
+void adreno_context_debugfs_init(struct adreno_device *,
+				struct adreno_context *);
 #else
 static inline void adreno_debugfs_init(struct kgsl_device *device) { }
+static inline void adreno_context_debugfs_init(struct adreno_device *,
+						struct adreno_context *) { }
 #endif
 
 /**
