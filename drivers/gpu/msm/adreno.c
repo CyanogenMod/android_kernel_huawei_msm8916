@@ -2916,7 +2916,6 @@ static int adreno_waittimestamp(struct kgsl_device *device,
 		unsigned int msecs)
 {
 	int ret;
-	struct adreno_context *drawctxt;
 
 	if (context == NULL) {
 		/* If they are doing then complain once */
@@ -2933,9 +2932,7 @@ static int adreno_waittimestamp(struct kgsl_device *device,
 		timestamp, msecs);
 
 	/* If the context got invalidated then return a specific error */
-	drawctxt = ADRENO_CONTEXT(context);
-
-	if (drawctxt->state == ADRENO_CONTEXT_STATE_INVALID)
+	if (kgsl_context_invalid(context))
 		ret = -EDEADLK;
 
 	/*
@@ -2944,7 +2941,7 @@ static int adreno_waittimestamp(struct kgsl_device *device,
 	 * fault activities
 	 */
 
-	if (!ret && test_and_clear_bit(ADRENO_CONTEXT_FAULT, &drawctxt->priv))
+	if (!ret && test_and_clear_bit(ADRENO_CONTEXT_FAULT, &context->priv))
 		ret = -EPROTO;
 
 	return ret;
