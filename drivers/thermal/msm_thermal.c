@@ -33,7 +33,6 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/thermal.h>
-#include <mach/rpm-regulator.h>
 #include <linux/regulator/rpm-smd-regulator.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
@@ -961,7 +960,7 @@ static int psm_set_mode_all(int mode)
 	return fail_cnt ? (-EFAULT) : ret;
 }
 
-static int vdd_rstr_en_show(
+static ssize_t vdd_rstr_en_show(
 	struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	struct vdd_rstr_enable *en = VDD_RSTR_ENABLE_FROM_ATTRIBS(attr);
@@ -1121,7 +1120,7 @@ static struct attribute_group vdd_rstr_en_attribs_gp = {
 	.attrs  = vdd_rstr_en_attribs,
 };
 
-static int vdd_rstr_reg_value_show(
+static ssize_t vdd_rstr_reg_value_show(
 	struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	int val = 0;
@@ -1135,7 +1134,7 @@ static int vdd_rstr_reg_value_show(
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static int vdd_rstr_reg_level_show(
+static ssize_t vdd_rstr_reg_level_show(
 	struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	struct rail *reg = VDD_RSTR_REG_LEVEL_FROM_ATTRIBS(attr);
@@ -1327,7 +1326,7 @@ show_phase(cx, curr_cx_band)
 store_phase(gfx, curr_gfx_band, false)
 store_phase(cx, curr_cx_band, true)
 
-static int psm_reg_mode_show(
+static ssize_t psm_reg_mode_show(
 	struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	struct psm_rail *reg = PSM_REG_MODE_FROM_ATTRIBS(attr);
@@ -2343,7 +2342,7 @@ reschedule:
 static int __ref msm_thermal_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *hcpu)
 {
-	uint32_t cpu = (uint32_t)hcpu;
+	uint32_t cpu = (uintptr_t)hcpu;
 
 	if (action == CPU_UP_PREPARE || action == CPU_UP_PREPARE_FROZEN) {
 		if (core_control_enabled &&
