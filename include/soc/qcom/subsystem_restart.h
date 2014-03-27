@@ -42,6 +42,8 @@ struct module;
  * @ramdump: Collect a ramdump of the subsystem
  * @is_not_loadable: Indicate if subsystem firmware is not loadable via pil
  * framework
+ * @no_auth: Set if subsystem does not rely on PIL to authenticate and bring
+ * it out of reset
  */
 struct subsys_desc {
 	const char *name;
@@ -64,6 +66,7 @@ struct subsys_desc {
 	int force_stop_gpio;
 	int ramdump_disable_gpio;
 	int ramdump_disable;
+	bool no_auth;
 };
 
 /**
