@@ -35,6 +35,7 @@
 #include <linux/msm_mdp.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_platform.h>
 #include <linux/proc_fs.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -47,11 +48,8 @@
 #include <linux/file.h>
 #include <linux/kthread.h>
 
-#include <mach/board.h>
-#include <mach/memory.h>
 #include <linux/qcom_iommu.h>
 #include <linux/msm_iommu_domains.h>
-#include <mach/msm_memtypes.h>
 
 #include "mdss_fb.h"
 #include "mdss_mdp_splash_logo.h"
@@ -68,6 +66,10 @@ struct msmfb_cabc_config g_cabc_cfg_foresd;
 #define MDSS_FB_NUM 3
 #else
 #define MDSS_FB_NUM 2
+#endif
+
+#ifndef EXPORT_COMPAT
+#define EXPORT_COMPAT(x)
 #endif
 
 #define MAX_FBI_LIST 32
