@@ -538,6 +538,9 @@ config BALANCE_ANON_FILE_RECLAIM
 	  Swapping anonymous pages out to memory can be efficient enough to justify
 	  treating anonymous and file backed pages equally.
 
+config GENERIC_EARLY_IOREMAP
+	bool
+
 config DEBUG_VMALLOC
 	bool "Enable VMALLOC debugging support"
 	help
