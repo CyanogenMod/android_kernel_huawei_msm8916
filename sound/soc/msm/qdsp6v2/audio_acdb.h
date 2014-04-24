@@ -75,5 +75,7 @@ int get_meta_info_size(uint32_t key, uint32_t *size);
 int get_meta_info(struct meta_info_t *metainfo);
 int get_ulp_lsm_cal(struct acdb_cal_block *cal_block);
 int get_ulp_afe_cal(struct acdb_cal_block *cal_block);
+int get_meta_info_size(uint32_t key, uint32_t *size);
+int get_meta_info(struct meta_info_t *metainfo);
 
 #endif
