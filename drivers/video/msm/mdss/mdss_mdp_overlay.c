@@ -1367,6 +1367,7 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 	struct mdss_overlay_private *mdp5_data = mfd_to_mdp5_data(mfd);
 	struct mdss_mdp_pipe *pipe, *tmp;
 	struct mdss_mdp_ctl *ctl = mfd_to_ctl(mfd);
+	struct mdp_display_commit temp_data;
 	int ret = 0;
 	int sd_in_pipe = 0;
 	bool need_cleanup = false;
@@ -1403,8 +1404,18 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_BEGIN);
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
 
-	if (data)
+	if (data) {
 		mdss_mdp_set_roi(ctl, data);
+	} else {
+		temp_data.l_roi = (struct mdp_rect){0, 0,
+			ctl->mixer_left->width, ctl->mixer_left->height};
+		if (ctl->mixer_right) {
+			temp_data.r_roi = (struct mdp_rect) {0, 0,
+			ctl->mixer_right->width, ctl->mixer_right->height};
+		}
+		mdss_mdp_set_roi(ctl, &temp_data);
+	}
+
 
 	/*
 	 * Setup pipe in solid fill before unstaging,
@@ -3690,6 +3701,9 @@ int mdss_mdp_overlay_init(struct msm_fb_data_type *mfd)
 	mfd->wait_for_kickoff = true;
 	if (is_panel_split(mfd) && mdp5_data->mdata->has_dst_split)
 		mfd->split_mode = MDP_SPLIT_MODE_DST;
+
+	if (mfd->panel_info->partial_update_enabled && is_split_lm(mfd))
+		mdp5_data->mdata->has_src_split = false;
 
 	rc = mdss_mdp_overlay_fb_parse_dt(mfd);
 	if (rc)
