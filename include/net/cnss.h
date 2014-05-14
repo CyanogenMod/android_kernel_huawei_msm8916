@@ -15,6 +15,10 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 
+#ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
+#define WCNSS_PRE_ALLOC_GET_THRESHOLD (4*1024)
+#endif
+
 /* max 20mhz channel count */
 #define CNSS_MAX_CH_NUM       45
 
@@ -71,5 +75,10 @@ extern void cnss_pm_wake_lock_destroy(struct wakeup_source *ws);
 extern int cnss_set_cpus_allowed_ptr(struct task_struct *task, ulong cpu);
 extern void cnss_request_pm_qos(u32 qos_val);
 extern void cnss_remove_pm_qos(void);
+
+#ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
+extern void *wcnss_prealloc_get(unsigned int size);
+extern int wcnss_prealloc_put(void *ptr);
+#endif
 
 #endif /* _NET_CNSS_H_ */
