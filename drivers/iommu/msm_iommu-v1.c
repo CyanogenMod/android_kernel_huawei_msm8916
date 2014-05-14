@@ -982,6 +982,8 @@ static size_t msm_iommu_unmap(struct iommu_domain *domain, unsigned long va,
 		goto fail;
 
 	ret = __flush_iotlb_va(domain, va);
+
+	msm_iommu_pagetable_free_tables(&priv->pt, va, len);
 fail:
 	mutex_unlock(&msm_iommu_lock);
 
@@ -1027,6 +1029,8 @@ static int msm_iommu_unmap_range(struct iommu_domain *domain, unsigned int va,
 	msm_iommu_pagetable_unmap_range(&priv->pt, va, len);
 
 	__flush_iotlb(domain);
+
+	msm_iommu_pagetable_free_tables(&priv->pt, va, len);
 	mutex_unlock(&msm_iommu_lock);
 	return 0;
 }
