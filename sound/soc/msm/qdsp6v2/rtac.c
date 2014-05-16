@@ -1508,7 +1508,8 @@ static long rtac_ioctl(struct file *f,
 }
 
 #ifdef CONFIG_COMPAT
-
+#define AUDIO_GET_RTAC_ADM_INFO_32   _IOR(CAL_IOCTL_MAGIC, 207, compat_uptr_t)
+#define AUDIO_GET_RTAC_VOICE_INFO_32 _IOR(CAL_IOCTL_MAGIC, 208, compat_uptr_t)
 #define AUDIO_GET_RTAC_ADM_CAL_32 _IOWR(AUDIO_IOCTL_MAGIC, \
 			(AUDIO_MAX_ACDB_IOCTL+3), compat_uptr_t)
 #define AUDIO_SET_RTAC_ADM_CAL_32 _IOWR(AUDIO_IOCTL_MAGIC, \
@@ -1538,11 +1539,13 @@ static long rtac_compat_ioctl(struct file *f,
 	}
 
 	switch (cmd) {
-	case AUDIO_GET_RTAC_ADM_INFO:
+	case AUDIO_GET_RTAC_ADM_INFO_32:
 	case AUDIO_GET_RTAC_ADM_INFO_V2:
-	case AUDIO_GET_RTAC_VOICE_INFO:
-		result = rtac_ioctl_shared(f, cmd, compat_ptr(arg));
-		break;
+		cmd = AUDIO_GET_RTAC_ADM_INFO;
+		goto process;
+	case AUDIO_GET_RTAC_VOICE_INFO_32:
+		cmd = AUDIO_GET_RTAC_VOICE_INFO;
+		goto process;
 	case AUDIO_GET_RTAC_ADM_CAL_32:
 		cmd = AUDIO_GET_RTAC_ADM_CAL;
 		goto process;
