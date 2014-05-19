@@ -139,6 +139,7 @@ static struct qpnp_vadc_scale_fn vadc_scale_fn[] = {
 	[SCALE_HUAWEI_PA_THERM]	= {qpnp_adc_scale_huawei_pa_therm},
 #endif
 	[SCALE_QRD_SKUH_BATT_THERM] = {qpnp_adc_scale_qrd_skuh_batt_therm},
+	[SCALE_NCP_03WF683_THERM] = {qpnp_adc_scale_therm_ncp03},
 };
 
 static int32_t qpnp_vadc_read_reg(struct qpnp_vadc_chip *vadc, int16_t reg,
