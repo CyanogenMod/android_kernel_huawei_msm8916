@@ -696,10 +696,6 @@ static int msm_compr_configure_dsp(struct snd_compr_stream *cstream)
 				prtd->session_id,
 				SNDRV_PCM_STREAM_PLAYBACK);
 
-	ret = msm_compr_set_volume(cstream, 0, 0);
-	if (ret < 0)
-		pr_err("%s : Set Volume failed : %d", __func__, ret);
-
 	ret = q6asm_set_softvolume(ac, &softvol);
 	if (ret < 0)
 		pr_err("%s: Send SoftVolume Param failed ret=%d\n",
