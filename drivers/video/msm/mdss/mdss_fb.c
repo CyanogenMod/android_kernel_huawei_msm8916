@@ -724,6 +724,21 @@ static int mdss_fb_lpm_enable(struct msm_fb_data_type *mfd, int mode)
 	return 0;
 }
 
+static ssize_t mdss_fb_get_src_split_info(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = fbi->par;
+	int ret = 0;
+
+	if ((mfd->split_mode == MDP_SPLIT_MODE_LM) &&
+	    (fbi->var.yres > 2048) && (fbi->var.yres > fbi->var.xres))
+		ret = scnprintf(buf, PAGE_SIZE,
+			"src_split_always\n");
+
+	return ret;
+}
+
 static DEVICE_ATTR(msm_fb_type, S_IRUGO, mdss_fb_get_type, NULL);
 static DEVICE_ATTR(msm_fb_split, S_IRUGO | S_IWUSR, mdss_fb_show_split,
 					mdss_fb_store_split);
@@ -739,6 +754,9 @@ static DEVICE_ATTR(mipi_crc, S_IRUGO, mdss_show_mipi_crc_check, NULL);
 #endif
 static DEVICE_ATTR(msm_fb_panel_status, S_IRUGO,
 	mdss_fb_get_panel_status, NULL);
+static DEVICE_ATTR(msm_fb_src_split_info, S_IRUGO, mdss_fb_get_src_split_info,
+	NULL);
+
 static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_msm_fb_type.attr,
 	&dev_attr_msm_fb_split.attr,
@@ -752,6 +770,7 @@ static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_mipi_crc.attr,
 #endif
 	&dev_attr_msm_fb_panel_status.attr,
+	&dev_attr_msm_fb_src_split_info.attr,
 	NULL,
 };
 
