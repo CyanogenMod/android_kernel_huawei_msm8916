@@ -290,7 +290,7 @@ static int fb_event_callback(struct notifier_block *self,
 	}
 
 	pdata->mfd = evdata->info->par;
-	if (event == FB_EVENT_BLANK && evdata) {
+	if (event == FB_EVENT_BLANK) {
 		int *blank = evdata->data;
 		struct dsi_status_data *pdata = container_of(self,
 				struct dsi_status_data, fb_notifier);
