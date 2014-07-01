@@ -281,6 +281,7 @@ config SND_SOC_MSMPLUTONIUM
 	select SND_SOC_MSM_HOSTLESS_PCM
 	select SND_DYNAMIC_MINORS
 	select MSM_QDSP6_APRV2
+	select QTI_PP
 	help
 	 To add support for SoC audio on MSMPLUTONIUM.
 	 This will enable sound soc drivers which
