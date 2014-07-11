@@ -1370,7 +1370,7 @@ static int mdss_dsi_parse_panel_features(struct device_node *np,
 
 	pinfo->ulps_feature_enabled = of_property_read_bool(np,
 		"qcom,ulps-enabled");
-	pr_info("%s: ulps feature %s", __func__,
+	pr_info("%s: ulps feature %s\n", __func__,
 		(pinfo->ulps_feature_enabled ? "enabled" : "disabled"));
 	pinfo->ulps_suspend_enabled = of_property_read_bool(np,
 		"qcom,suspend-ulps-enabled");
@@ -1395,7 +1395,7 @@ static int mdss_dsi_parse_panel_features(struct device_node *np,
 		}
 	}
 
-	pr_info("%s: dynamic switch feature enabled: %d", __func__,
+	pr_info("%s: dynamic switch feature enabled: %d\n", __func__,
 		pinfo->mipi.dynamic_switch_enabled);
 
 	return 0;
@@ -1904,7 +1904,7 @@ int mdss_dsi_panel_init(struct device_node *node,
 
 	if (!cmd_cfg_cont_splash)
 		pinfo->cont_splash_enabled = false;
-	pr_info("%s: Continuous splash %s", __func__,
+	pr_info("%s: Continuous splash %s\n", __func__,
 		pinfo->cont_splash_enabled ? "enabled" : "disabled");
 
 	pinfo->dynamic_switch_pending = false;
