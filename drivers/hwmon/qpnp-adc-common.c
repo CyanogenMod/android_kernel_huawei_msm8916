@@ -1151,6 +1151,8 @@ int32_t qpnp_adc_scale_batt_therm(struct qpnp_vadc_chip *chip,
 	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
 			adc_properties, chan_properties);
 
+	adc_chan_result->measurement = bat_voltage;
+
 	return qpnp_adc_map_temp_voltage(
 			adcmap_btm_threshold,
 			ARRAY_SIZE(adcmap_btm_threshold),
@@ -1169,6 +1171,8 @@ int32_t qpnp_adc_scale_qrd_batt_therm(struct qpnp_vadc_chip *chip,
 
 	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
 			adc_properties, chan_properties);
+
+	adc_chan_result->measurement = bat_voltage;
 
 	return qpnp_adc_map_temp_voltage(
 			adcmap_qrd_btm_threshold,
@@ -1189,6 +1193,8 @@ int32_t qpnp_adc_scale_qrd_skuaa_batt_therm(struct qpnp_vadc_chip *chip,
 	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
 			adc_properties, chan_properties);
 
+	adc_chan_result->measurement = bat_voltage;
+
 	return qpnp_adc_map_temp_voltage(
 			adcmap_qrd_skuaa_btm_threshold,
 			ARRAY_SIZE(adcmap_qrd_skuaa_btm_threshold),
@@ -1207,6 +1213,8 @@ int32_t qpnp_adc_scale_qrd_skug_batt_therm(struct qpnp_vadc_chip *chip,
 
 	bat_voltage = qpnp_adc_scale_ratiometric_calib(adc_code,
 			adc_properties, chan_properties);
+
+	adc_chan_result->measurement = bat_voltage;
 
 	return qpnp_adc_map_temp_voltage(
 			adcmap_qrd_skug_btm_threshold,
