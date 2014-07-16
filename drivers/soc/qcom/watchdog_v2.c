@@ -43,7 +43,7 @@
 #define MASK_SIZE		32
 #define SCM_SET_REGSAVE_CMD	0x2
 #define SCM_SVC_SEC_WDOG_DIS	0x7
-#define MAX_CPU_CTX_SIZE	1024
+#define MAX_CPU_CTX_SIZE	2048
 
 #ifdef CONFIG_HUAWEI_KERNEL
 #define DIV_FACTOR_NS 1000000000             /* nsec and sec for conversion */
