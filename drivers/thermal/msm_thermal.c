@@ -41,6 +41,10 @@
 #include <soc/qcom/scm.h>
 #include <linux/sched/rt.h>
 
+#define CREATE_TRACE_POINTS
+#define TRACE_MSM_THERMAL
+#include <trace/trace_thermal.h>
+
 #define MAX_CURRENT_UA 100000
 #define MAX_RAILS 5
 #define MAX_THRESHOLD 2
@@ -376,7 +380,13 @@ static void update_cpu_freq(int cpu)
 	int ret = 0;
 
 	if (cpu_online(cpu)) {
+		trace_thermal_pre_frequency_mit(cpu,
+			cpus[cpu].limited_max_freq,
+			cpus[cpu].limited_min_freq);
 		ret = cpufreq_update_policy(cpu);
+		trace_thermal_post_frequency_mit(cpu,
+			cpufreq_quick_get_max(cpu),
+			cpus[cpu].limited_min_freq);
 		if (ret)
 			pr_err("Unable to update policy for cpu:%d. err:%d\n",
 				cpu, ret);
@@ -1871,10 +1881,13 @@ static void __ref do_core_control(long temp)
 				continue;
 			pr_info("Set Offline: CPU%d Temp: %ld\n",
 					i, temp);
+			trace_thermal_pre_core_offline(i);
 			ret = cpu_down(i);
 			if (ret)
 				pr_err("Error %d offline core %d\n",
 					ret, i);
+			trace_thermal_post_core_offline(i,
+				cpumask_test_cpu(i, cpu_online_mask));
 			cpus_offlined |= BIT(i);
 			break;
 		}
@@ -1893,10 +1906,13 @@ static void __ref do_core_control(long temp)
 			 */
 			if (cpu_online(i))
 				continue;
+			trace_thermal_pre_core_online(i);
 			ret = cpu_up(i);
 			if (ret)
 				pr_err("Error %d online core %d\n",
 						ret, i);
+			trace_thermal_post_core_online(i,
+				cpumask_test_cpu(i, cpu_online_mask));
 			break;
 		}
 	}
@@ -1919,15 +1935,19 @@ static int __ref update_offline_cores(int val)
 		if (cpus_offlined & BIT(cpu)) {
 			if (!cpu_online(cpu))
 				continue;
+			trace_thermal_pre_core_offline(cpu);
 			ret = cpu_down(cpu);
 			if (ret)
 				pr_err("Unable to offline CPU%d. err:%d\n",
 					cpu, ret);
 			else
 				pr_debug("Offlined CPU%d\n", cpu);
+			trace_thermal_post_core_offline(cpu,
+				cpumask_test_cpu(cpu, cpu_online_mask));
 		} else if (online_core && (previous_cpus_offlined & BIT(cpu))) {
 			if (cpu_online(cpu))
 				continue;
+			trace_thermal_pre_core_online(cpu);
 			ret = cpu_up(cpu);
 			if (ret && ret == notifier_to_errno(NOTIFY_BAD))
 				pr_debug("Onlining CPU%d is vetoed\n", cpu);
@@ -1936,6 +1956,8 @@ static int __ref update_offline_cores(int val)
 						cpu, ret);
 			else
 				pr_debug("Onlined CPU%d\n", cpu);
+			trace_thermal_post_core_online(cpu,
+				cpumask_test_cpu(cpu, cpu_online_mask));
 		}
 	}
 	return ret;
