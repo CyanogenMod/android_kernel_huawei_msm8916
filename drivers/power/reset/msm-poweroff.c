@@ -30,6 +30,7 @@
 
 #include <soc/qcom/scm.h>
 #include <soc/qcom/restart.h>
+#include <soc/qcom/watchdog.h>
 
 #ifdef CONFIG_HUAWEI_KERNEL
 #include <linux/huawei_apanic.h>
@@ -352,6 +353,14 @@ static void do_msm_restart(enum reboot_mode reboot_mode, const char *cmd)
 
 
 	msm_restart_prepare(cmd);
+
+	/*
+	 * Trigger a watchdog bite here and if this fails,
+	 * device will take the usual restart path.
+	 */
+
+	if (WDOG_BITE_ON_PANIC && in_panic)
+		msm_trigger_wdog_bite();
 
 	/* Needed to bypass debug image on some chips */
 	ret = scm_call_atomic2(SCM_SVC_BOOT,
