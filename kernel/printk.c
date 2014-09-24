@@ -223,6 +223,9 @@ struct log {
 	pid_t pid;					/* task pid */
 	char comm[TASK_COMM_LEN];	/* task name */
 #endif
+#if defined(CONFIG_LOG_BUF_MAGIC)
+	u32 magic;		/* handle for ramdump analysis tools */
+#endif
 };
 
 /*
@@ -320,6 +323,13 @@ int huawei_get_log_buf_len(void)
 }
 EXPORT_SYMBOL(huawei_get_log_buf_addr);
 EXPORT_SYMBOL(huawei_get_log_buf_len);
+#endif
+
+#if defined(CONFIG_LOG_BUF_MAGIC)
+static u32 __log_align __used = LOG_ALIGN;
+#define LOG_MAGIC(msg) ((msg)->magic = 0x5d7aefca)
+#else
+#define LOG_MAGIC(msg)
 #endif
 
 /* cpu currently holding logbuf_lock */
@@ -485,6 +495,7 @@ static void log_store(int facility, int level,
 		 * to signify a wrap around.
 		 */
 		memset(log_buf + log_next_idx, 0, sizeof(struct log));
+		LOG_MAGIC((struct log *)(log_buf + log_next_idx));
 		log_next_idx = 0;
 	}
 
@@ -502,6 +513,7 @@ static void log_store(int facility, int level,
 	memset(msg->comm, 0, TASK_COMM_LEN);
 	memcpy(msg->comm, current->comm, TASK_COMM_LEN-1);
 #endif
+	LOG_MAGIC(msg);
 	if (ts_nsec > 0)
 		msg->ts_nsec = ts_nsec;
 	else
