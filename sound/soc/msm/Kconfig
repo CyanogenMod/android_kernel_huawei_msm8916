@@ -255,6 +255,7 @@ config SND_SOC_MSM8X16
 	select QTI_PP
 	select DTS_SRS_TM
 	select DOLBY_DAP
+	select SND_HWDEP
 	help
 	 To add support for SoC audio on MSM8X16.
 	 This will enable sound soc drivers which
