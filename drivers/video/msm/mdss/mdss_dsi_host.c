@@ -1581,6 +1581,7 @@ int mdss_dsi_cmdlist_rx(struct mdss_dsi_ctrl_pdata *ctrl,
 		rp = &ctrl->rx_buf;
 		len = mdss_dsi_cmds_rx(ctrl, req->cmds, req->rlen);
 		memcpy(req->rbuf, rp->data, rp->len);
+		ctrl->rx_len = len;
 		/*
 		 * For dual DSI cases, early return of master ctrl
 		 * is valid. Hence, for those cases the return value
