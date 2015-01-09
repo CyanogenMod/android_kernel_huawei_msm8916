@@ -342,6 +342,8 @@ Optional properties:
 					"hflip" = panel is flipped in horizontal direction
 					"vflip" = panel is flipped in vertical direction
 - qcom,suspend-ulps-enabled:		Boolean used to enable ULPS mode during suspend state
+- qcom,mdss-dsi-post-init-delay:	Specifies required number of frames to wait so that panel can be functional
+					to show proper display.
 
 Note, if a given optional qcom,* binding is not present, then the driver will configure
 the default values specified.
@@ -462,5 +464,6 @@ Example:
 						<128 240 64>;
 		qcom,mdss-dsi-panel-orientation = "180"
 		qcom,suspend-ulps-enabled;
+		qcom,mdss-dsi-post-init-delay = <1>;
 	};
 };
