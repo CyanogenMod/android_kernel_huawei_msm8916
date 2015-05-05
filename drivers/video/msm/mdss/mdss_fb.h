@@ -266,6 +266,7 @@ struct msm_fb_data_type {
 #endif
 	u32 wait_for_kickoff;
 	bool mdss_fb_split_stored;
+	struct led_trigger *boot_notification_led;
 };
 
 static inline void mdss_fb_update_notify_update(struct msm_fb_data_type *mfd)
