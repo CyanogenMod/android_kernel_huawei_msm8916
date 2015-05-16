@@ -58,7 +58,6 @@
 #include <linux/hw_lcd_common.h>
 #ifdef CONFIG_HUAWEI_LCD
 #include "mdss_mdp.h"
-#include "hw_lcd_debug.h"
 struct msmfb_cabc_config g_cabc_cfg_foresd;
 #endif
 
@@ -929,10 +928,6 @@ static int mdss_fb_probe(struct platform_device *pdev)
 		mfd->mdp.splash_init_fnc(mfd);
 
 	INIT_DELAYED_WORK(&mfd->idle_notify_work, __mdss_fb_idle_notify_work);
-#if defined(CONFIG_HUAWEI_KERNEL) && defined(CONFIG_DEBUG_FS)
-	/* init lcd debugfs interface */
-	lcd_debugfs_init();
-#endif
 
 	return rc;
 }

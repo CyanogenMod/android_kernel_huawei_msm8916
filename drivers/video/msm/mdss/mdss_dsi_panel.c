@@ -26,16 +26,11 @@
 #include <linux/log_jank.h>
 #include <misc/app_info.h>
 #include <linux/hw_lcd_common.h>
-#include <hw_lcd_debug.h>
 extern int get_offline_cpu(void);
 extern unsigned int cpufreq_get(unsigned int cpu);
 #ifdef CONFIG_HUAWEI_LCD
-int lcd_debug_mask = LCD_INFO;
 #define INVERSION_OFF 0
 #define INVERSION_ON 1
-module_param_named(lcd_debug_mask, lcd_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
-static bool enable_initcode_debugging = FALSE;
-module_param_named(enable_initcode_debugging, enable_initcode_debugging, bool, S_IRUGO | S_IWUSR);
 extern struct msmfb_cabc_config g_cabc_cfg_foresd;
 #endif
 #define DT_CMD_HDR 6
@@ -655,19 +650,8 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->dsi_panel_inverse_on_cmds);
 		LCD_LOG_DBG("%s:display inversion open:inversion_state = [%d]\n",__func__,ctrl->inversion_state);
 	}
-	if (enable_initcode_debugging && !hw_parse_dsi_cmds(&cmds))
-	{
-		LCD_LOG_INFO("read from debug file and write to LCD!\n");
-		cmds.link_state = ctrl->on_cmds.link_state;
-		if (cmds.cmd_cnt)
-			mdss_dsi_panel_cmds_send(ctrl, &cmds);
-		hw_free_dsi_cmds(&cmds);
-	}
-	else
-	{
-		if (ctrl->on_cmds.cmd_cnt)
-			mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
-	}
+	if (ctrl->on_cmds.cmd_cnt)
+		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
 /* remove APR web LCD report log information  */
 #ifdef CONFIG_HUAWEI_DSM
 	lcd_pwr_status.lcd_dcm_pwr_status |= BIT(1);
@@ -676,10 +660,6 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 #endif
 
 	LCD_LOG_INFO("exit %s\n",__func__);
-#endif
-/*set mipi status*/
-#if defined(CONFIG_HUAWEI_KERNEL) && defined(CONFIG_DEBUG_FS)
-	atomic_set(&mipi_path_status,MIPI_PATH_OPEN);
 #endif
 	pr_debug("%s:-\n", __func__);
 /* add for timeout print log */
@@ -701,10 +681,6 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
 	}
-/*set mipi status*/
-#if defined(CONFIG_HUAWEI_KERNEL) && defined(CONFIG_DEBUG_FS)
-	atomic_set(&mipi_path_status,MIPI_PATH_CLOSE);
-#endif
 
 	pinfo = &pdata->panel_info;
 
@@ -1925,10 +1901,6 @@ int mdss_dsi_panel_init(struct device_node *node,
 	ctrl_pdata->panel_data.config_cabc = mdss_dsi_panel_cabc_ctrl;
 #endif
 
-/*save ctrl_pdata */
-#if defined(CONFIG_HUAWEI_KERNEL) && defined(CONFIG_DEBUG_FS)
-	lcd_dbg_set_dsi_ctrl_pdata(ctrl_pdata);
-#endif
 	ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
 
 	return 0;

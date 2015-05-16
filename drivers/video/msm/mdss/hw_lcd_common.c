@@ -74,6 +74,7 @@
 #include <linux/sched.h>
 struct dsm_client *lcd_dclient = NULL;
 
+int lcd_debug_mask = LCD_INFO;
 
 #ifdef CONFIG_DEBUG_FS
 /* whether print log or not */
