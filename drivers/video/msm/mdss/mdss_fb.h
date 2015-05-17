@@ -261,7 +261,6 @@ struct msm_fb_data_type {
 	struct ion_handle *fb_ion_handle;
 	struct dma_buf *fbmem_buf;
 #ifdef CONFIG_HUAWEI_LCD
-	struct delayed_work bkl_work;
 	u32 frame_updated;
 #endif
 	u32 wait_for_kickoff;

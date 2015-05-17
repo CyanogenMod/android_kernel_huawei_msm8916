@@ -1840,6 +1840,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		"qcom,panel-column-inversion-mode-cmds", "qcom,column-inversion-cmds-dsi-state");
 	rc = of_property_read_u32(np, "huawei,long-read-flag", &tmp);
 	ctrl_pdata->long_read_flag= (!rc ? tmp : 0);
+
 	rc = of_property_read_u32(np, "huawei,skip-reg-read-flag", &tmp);
 	ctrl_pdata->skip_reg_read= (!rc ? tmp : 0);
 
@@ -1848,8 +1849,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 
 	rc = of_property_read_u32(np, "huawei,reg-long-read-count", &tmp);
 	ctrl_pdata->reg_expect_count = (!rc ? tmp : 3);
-	rc = of_property_read_u32(np, "huawei,delaytime-before-bl", &tmp);
-	pinfo->delaytime_before_bl = (!rc ? tmp : 0);
+
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->dsi_panel_inverse_on_cmds,
 		"qcom,panel-inverse-on-cmds", "qcom,inverse-on-cmds-dsi-state");
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->dsi_panel_inverse_off_cmds,

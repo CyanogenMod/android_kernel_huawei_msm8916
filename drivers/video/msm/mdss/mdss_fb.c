@@ -1271,42 +1271,6 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 	}
 }
 
-#ifdef CONFIG_HUAWEI_LCD
-void mdss_fb_update_backlight_wq_handler(struct work_struct *work)
-{
-	struct mdss_panel_data *pdata;
-	struct msm_fb_data_type *mfd;
-	mfd = container_of(to_delayed_work(work), struct msm_fb_data_type, bkl_work);
-	
-	LCD_LOG_DBG("%s: enter\n",__func__);
-	mutex_lock(&mfd->bl_lock);
-	if (mfd->unset_bl_level) {
-		pdata = dev_get_platdata(&mfd->pdev->dev);
-		if ((pdata) && (pdata->set_backlight)) {
-	              unsigned long timeout = jiffies;
-			mfd->bl_level = mfd->unset_bl_level;
-			wait_event_interruptible_timeout(pdata->waitq,mdss_ready_flag,msecs_to_jiffies(1000));
-			pdata->set_backlight(pdata, mfd->bl_level);
-			mfd->bl_level_scaled = mfd->unset_bl_level;
-			mfd->unset_bl_level = 0;
-/* remove APR web LCD report log information  */
-#ifdef CONFIG_HUAWEI_DSM
-			lcd_pwr_status.lcd_dcm_pwr_status |= BIT(3);
-			do_gettimeofday(&lcd_pwr_status.tvl_backlight);
-			time_to_tm(lcd_pwr_status.tvl_backlight.tv_sec, 0, &lcd_pwr_status.tm_backlight);
-#endif
-
-                     LCD_LOG_INFO("%s: level = %d,  set backlight time = %u,offlinecpu = %d,curfreq = %d\n",
-			 __func__,mfd->bl_level,jiffies_to_msecs(jiffies-timeout),get_offline_cpu(),cpufreq_get(0));
-#ifdef CONFIG_LOG_JANK
-             pr_jank(JL_KERNEL_LCD_RESUME,"%s,%d#T:%5lu", "JL_KERNEL_LCD_RESUME",mfd->bl_level,getrealtime());
-#endif
-		}
-	}
-	mfd->bl_updated = 1;
-	mutex_unlock(&mfd->bl_lock);
-}
-#else
 void mdss_fb_update_backlight(struct msm_fb_data_type *mfd)
 {
 	struct mdss_panel_data *pdata;
@@ -1325,7 +1289,6 @@ void mdss_fb_update_backlight(struct msm_fb_data_type *mfd)
 		mutex_unlock(&mfd->bl_lock);
 	}
 }
-#endif
 
 static int mdss_fb_start_disp_thread(struct msm_fb_data_type *mfd)
 {
@@ -1476,10 +1439,6 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 
 			mfd->op_enable = false;
 			curr_pwr_state = mfd->panel_power_on;
-		#ifdef CONFIG_HUAWEI_LCD
-			cancel_delayed_work_sync(&mfd->bkl_work);
-			LCD_LOG_DBG("%s: cancle bkl_delay work \n",__func__);
-		#endif
 			mutex_lock(&mfd->bl_lock);
 #ifndef CONFIG_HUAWEI_LCD
 			mdss_fb_set_backlight(mfd, 0);
@@ -2140,10 +2099,6 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 	init_waitqueue_head(&mfd->commit_wait_q);
 	init_waitqueue_head(&mfd->idle_wait_q);
 	init_waitqueue_head(&mfd->ioctl_q);
-#ifdef CONFIG_HUAWEI_LCD
-	INIT_DELAYED_WORK(&mfd->bkl_work, mdss_fb_update_backlight_wq_handler);
-#endif
-
 	init_waitqueue_head(&mfd->kickoff_wait_q);
 
 	ret = fb_alloc_cmap(&fbi->cmap, 256, 0);
@@ -2827,16 +2782,8 @@ static int __mdss_fb_perform_commit(struct msm_fb_data_type *mfd)
 			pr_err("pan display failed %x on fb%d\n", ret,
 					mfd->index);
 	}
-#ifndef CONFIG_HUAWEI_LCD
 	if (!ret)
 		mdss_fb_update_backlight(mfd);
-#else
-	if (!ret)
-	{
-		LCD_LOG_DBG("%s:%d schedule work delaytime=%d ms\n",__func__,__LINE__,mfd->panel_info->delaytime_before_bl);
-		schedule_delayed_work(&mfd->bkl_work,msecs_to_jiffies(mfd->panel_info->delaytime_before_bl));
-	}
-#endif
 
 	if (IS_ERR_VALUE(ret) || !sync_pt_data->flushed) {
 		mdss_fb_release_kickoff(mfd);
