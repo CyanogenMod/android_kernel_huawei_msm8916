@@ -907,10 +907,6 @@ int mdss_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 
 	pr_debug("%s: Checking BTA status\n", __func__);
 
-	/*if panel check error and enable the esd check bit in dtsi,report the event to hal layer*/
-	if(ctrl_pdata->esd_check_enable)
-		ret = panel_check_live_status(ctrl_pdata);
-
 	return ret;
 }
 
