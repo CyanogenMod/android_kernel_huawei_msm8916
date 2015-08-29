@@ -1,0 +1,1 @@
+/* remove the function of UHS as the vdd can't power cycle when SD card is pluged */

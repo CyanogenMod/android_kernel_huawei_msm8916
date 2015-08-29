@@ -1,0 +1,14 @@
+&soc {
+        huawei,huawei-gpio-info {
+                compatible = "huawei-gpio-info";
+                huawei,voltage-active-low;
+        };
+
+/* remove the function of UHS as the vdd can't power cycle when SD card is pluged */
+     };
+
+&sdhc_2 {	
+
+        /*Add node for allowing to power off ldo when has no sdcard*/
+        huawei,power-off-no-card;
+};
