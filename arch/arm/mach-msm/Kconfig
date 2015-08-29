@@ -1097,4 +1097,69 @@ config HUAWEI_THERMAL
 	help
 	  Use huawei thermal code
 
+config SUPPORT_C8817D
+	bool "Support for C8817D"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
+config SUPPORT_C8817E
+	bool "Support for C8817E"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
+config SUPPORT_G611
+	bool "Support for G611"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
+config SUPPORT_G619
+	bool "Support for G619"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
+config SUPPORT_G620S
+	bool "Support for G620S"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
+config SUPPORT_G621
+	bool "Support for G621"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
+config SUPPORT_G622
+	bool "Support for G622"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
+config SUPPORT_G660S
+	bool "Support for G660S"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
+config SUPPORT_G760
+	bool "Support for G760"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
+config SUPPORT_CHERRY_CL10
+	bool "Support for CHERRY_CL10"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
+config SUPPORT_CHERRY_CL20
+	bool "Support for CHERRY_CL20"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
+config SUPPORT_CHERRY_L04
+	bool "Support for CHERRY_L04"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
+config SUPPORT_Y635
+	bool "Support for Y635"
+	depends on HUAWEI_KERNEL && ARCH_MSM8916
+	default n
+
 endif
