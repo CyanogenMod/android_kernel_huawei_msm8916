@@ -1,0 +1,9 @@
+ / {
+        huawei_fac_info {
+                  compatible = "huawei,hw_fac_info";
+                  fac,product_name = "HUAWEI G660S-TL00";
+                  fac,hardware_ver = "HL0MSM8916MT0";
+                  fac,software_ver = "MSM8916_G660S-TL00_VA";
+                  status = "ok";
+        };
+};

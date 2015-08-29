@@ -1,0 +1,9 @@
+ / {
+        huawei_wifi_info {
+                  compatible = "huawei,hw_wifi_info";
+                  status = "ok";
+                  wifi,chiptype = "WIFI_QUALCOMM_WCN3620";
+                  wifi,pubfile_id = "Y630-TL";
+                  wifi,fw_ver = "1.4.1.2";
+        };
+};

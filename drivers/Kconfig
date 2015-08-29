@@ -185,5 +185,13 @@ source "drivers/sensors/Kconfig"
 source "drivers/phy/Kconfig"
 
 source "drivers/soc/Kconfig"
+source "drivers/devdetect/Kconfig"
+source "drivers/hw_fac_info/Kconfig"
+
+source "drivers/cpu_stress/Kconfig"
+source "drivers/huawei/Kconfig"
+# /* DTS20141205XXXXX qidechun/yantongguang 2014-12-05 begin */ 
+source "drivers/srecorder/Kconfig"
+# /* DTS20141205XXXXX qidechun/yantongguang 2014-12-05 end */ 
 
 endmenu

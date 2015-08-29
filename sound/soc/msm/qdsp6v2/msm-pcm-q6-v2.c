@@ -33,7 +33,7 @@
 
 #include <linux/of_device.h>
 #include <sound/pcm_params.h>
-
+#include <sound/hw_audio_info.h>
 #include "msm-pcm-q6-v2.h"
 #include "msm-pcm-routing-v2.h"
 
@@ -790,6 +790,7 @@ static int msm_pcm_hw_params(struct snd_pcm_substream *substream,
 		ret = q6asm_open_write_v2(prtd->audio_client,
 				FORMAT_LINEAR_PCM, bits_per_sample);
 		if (ret < 0) {
+			audio_dsm_report_num(DSM_AUDIO_ADSP_SETUP_FAIL_ERROR_NO, DSM_AUDIO_MESG_ASM_WRITE_FAIL);
 			pr_err("%s: q6asm_open_write_v2 failed\n", __func__);
 			q6asm_audio_client_free(prtd->audio_client);
 			prtd->audio_client = NULL;
@@ -1000,7 +1001,6 @@ static int msm_pcm_probe(struct platform_device *pdev)
 		pdata->perf_mode = LEGACY_PCM_MODE;
 
 	dev_set_drvdata(&pdev->dev, pdata);
-
 
 	dev_dbg(&pdev->dev, "%s: dev name %s\n",
 				__func__, dev_name(&pdev->dev));

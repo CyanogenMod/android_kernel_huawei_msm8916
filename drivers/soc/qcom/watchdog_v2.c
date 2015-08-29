@@ -42,6 +42,10 @@
 #define SCM_SVC_SEC_WDOG_DIS	0x7
 #define MAX_CPU_CTX_SIZE	1024
 
+#ifdef CONFIG_HUAWEI_KERNEL
+#define DIV_FACTOR_NS 1000000000             /* nsec and sec for conversion */
+#endif
+
 static struct workqueue_struct *wdog_wq;
 static struct msm_watchdog_data *wdog_data;
 
@@ -242,7 +246,9 @@ static void pet_watchdog(struct msm_watchdog_data *wdog_dd)
 	unsigned long long time_ns;
 	unsigned long long slack_ns;
 	unsigned long long bark_time_ns = wdog_dd->bark_time * 1000000ULL;
-
+#ifdef CONFIG_HUAWEI_KERNEL
+	unsigned long nanosec_rem = 0;
+#endif
 	for (i = 0; i < 2; i++) {
 		count = (__raw_readl(wdog_dd->base + WDT0_STS) >> 1) & 0xFFFFF;
 		if (count != prev_count) {
@@ -259,6 +265,11 @@ static void pet_watchdog(struct msm_watchdog_data *wdog_dd)
 	if (slack_ns < wdog_dd->min_slack_ns)
 		wdog_dd->min_slack_ns = slack_ns;
 	wdog_dd->last_pet = time_ns;
+#ifdef CONFIG_HUAWEI_KERNEL
+	nanosec_rem = do_div(wdog_dd->last_pet, DIV_FACTOR_NS);
+	printk(KERN_INFO "Watchdog pet at %lu.%06lu\n", (unsigned long)
+		wdog_dd->last_pet, nanosec_rem / 1000);
+#endif
 }
 
 static void keep_alive_response(void *info)

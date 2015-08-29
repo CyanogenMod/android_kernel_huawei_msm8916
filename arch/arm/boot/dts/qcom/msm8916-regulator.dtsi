@@ -147,17 +147,15 @@
 			status = "okay";
 		};
 	};
-
 	rpm-regulator-smpa4 {
 		status = "okay";
 		pm8916_s4: regulator-s4 {
-			regulator-min-microvolt = <1800000>;
+			regulator-min-microvolt = <2100000>;
 			regulator-max-microvolt = <2100000>;
-			qcom,init-voltage = <1800000>;
+			qcom,init-voltage = <2100000>;
 			status = "okay";
 		};
 	};
-
 	rpm-regulator-ldoa1 {
 		status = "okay";
 		pm8916_l1: regulator-l1 {
@@ -268,9 +266,9 @@
 	rpm-regulator-ldoa8 {
 		status = "okay";
 		pm8916_l8: regulator-l8 {
-			regulator-min-microvolt = <2850000>;
-			regulator-max-microvolt = <2900000>;
-			qcom,init-voltage = <2850000>;
+			regulator-min-microvolt = <2950000>;
+			regulator-max-microvolt = <2950000>;
+			qcom,init-voltage = <2950000>;
 			status = "okay";
 		};
 	};

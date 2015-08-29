@@ -168,3 +168,13 @@ obj-$(CONFIG_ESOC)		+= esoc/
 obj-$(CONFIG_BIF)		+= bif/
 obj-$(CONFIG_SENSORS)		+= sensors/
 obj-$(CONFIG_SENSORS_SSC)	+= sensors/
+obj-$(CONFIG_HUAWEI_HW_DEV_DCT) += devdetect/
+obj-$(CONFIG_HUAWEI_FACTORY_INFO) += hw_fac_info/
+
+# cpu stress test
+obj-$(CONFIG_CPU_STRESS_TEST)	+= cpu_stress/
+obj-$(CONFIG_HUAWEI_STORE_EXCEPTION) += huawei/
+# /* DTS20141205XXXXX qidechun/yantongguang 2014-12-05 begin */ 
+obj-$(CONFIG_SRECORDER)     += srecorder/
+# /* DTS20141205XXXXX qidechun/yantongguang 2014-12-05 end */
+

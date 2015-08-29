@@ -28,6 +28,10 @@
 #define CDBG(fmt, args...) do { } while (0)
 #endif
 
+#ifdef CONFIG_HUAWEI_DSM
+int camera_is_in_probe = 0;
+#endif
+
 static struct msm_sensor_init_t *s_init;
 
 /* Static function declaration */
@@ -79,6 +83,9 @@ static int32_t msm_sensor_driver_cmd(struct msm_sensor_init_t *s_init,
 
 	switch (cfg->cfgtype) {
 	case CFG_SINIT_PROBE:
+#ifdef CONFIG_HUAWEI_DSM
+		camera_is_in_probe = 1;
+#endif
 		mutex_lock(&s_init->imutex);
 		s_init->module_init_status = 0;
 		rc = msm_sensor_driver_probe(cfg->cfg.setting);
@@ -90,12 +97,19 @@ static int32_t msm_sensor_driver_cmd(struct msm_sensor_init_t *s_init,
 	case CFG_SINIT_PROBE_DONE:
 		s_init->module_init_status = 1;
 		wake_up(&s_init->state_wait);
+#ifdef CONFIG_HUAWEI_DSM
+		camera_is_in_probe = 0;
+#endif
 		break;
 
 	case CFG_SINIT_PROBE_WAIT_DONE:
 		msm_sensor_wait_for_probe_done(s_init);
 		break;
 
+	/*use dtsi get sensor name instead of board id string*/
+	case CFG_SINIT_GET_SENSOR_CODE_LIST:
+		rc = msm_get_probe_sensor_codes(cfg->cfg.setting);
+		break;
 	default:
 		pr_err("default");
 		break;
@@ -127,7 +141,7 @@ static long msm_sensor_init_subdev_ioctl(struct v4l2_subdev *sd,
 		break;
 	}
 
-	return 0;
+	return rc;
 }
 
 static int __init msm_sensor_init_module(void)

@@ -193,6 +193,9 @@ enum sdc_mpm_pin_state {
 #define NUM_TUNING_PHASES		16
 #define MAX_DRV_TYPES_SUPPORTED_HS200	3
 
+#define CORE_VENDOR_SPEC_FUNC2 0x110
+#define ONE_MID_EN (1 << 25)
+
 static const u32 tuning_block_64[] = {
 	0x00FF0FFF, 0xCCC3CCFF, 0xFFCC3CC3, 0xEFFEFFFE,
 	0xDDFFDFFF, 0xFBFFFBFF, 0xFF7FFFBF, 0xEFBDF777,
@@ -983,6 +986,7 @@ retry:
 			.data = &data
 		};
 		struct scatterlist sg;
+		writel_relaxed((readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC_FUNC2) | ONE_MID_EN), host->ioaddr + CORE_VENDOR_SPEC_FUNC2);
 
 		/* set the phase in delay line hw block */
 		rc = msm_config_cm_dll_phase(host, phase);
@@ -1090,6 +1094,7 @@ out:
 	if (!rc)
 		msm_host->tuning_done = true;
 	spin_unlock_irqrestore(&host->lock, flags);
+	writel_relaxed((readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC_FUNC2) & ~ONE_MID_EN), host->ioaddr + CORE_VENDOR_SPEC_FUNC2);
 	pr_debug("%s: Exit %s, err(%d)\n", mmc_hostname(mmc), __func__, rc);
 	return rc;
 }
@@ -1171,7 +1176,73 @@ out:
 
 	return ret;
 }
+#ifdef CONFIG_HUAWEI_KERNEL
+#ifndef MAX_PROP_SIZE
+#define MAX_PROP_SIZE 32
+#endif
+#define EMMC_NO 1
+static int huawei_hs200_support(void)
+{
+	int ret = 0;
+	char prop_name[MAX_PROP_SIZE] = {0};
+	struct device_node *np = NULL;
+	/*try to get the device node huawei-support-hs200.*/
+	np = of_find_compatible_node(NULL,NULL,"huawei-support-hs200");
+	if(!np)
+	{
+		/*if np is NULL,return 1.*/
+		return ret;
+	}
+	snprintf(prop_name, MAX_PROP_SIZE,
+			"%s", "huawei,support-hs200");
+	if (of_get_property(np, prop_name, NULL))
+	{
+		/*if we can get huawei,support-hs200,return 1.*/
+		ret = 1;
+	}
 
+	return ret;
+}
+static int huawei_sdhci_msm_dt_get_array(struct device *dev, struct device_node  *np,const char *prop_name,
+				 u32 **out, int *len, u32 size)
+{
+	int ret = 0;
+	size_t sz;
+	u32 *arr = NULL;
+    int id= 0;
+
+	if (!of_get_property(np, prop_name, len)) {
+		ret = -EINVAL;
+		goto out;
+	}
+	sz = *len = *len / sizeof(*arr);
+	if (sz <= 0 || (size > 0 && (sz > size))) {
+		dev_err(dev, "%s invalid size\n", prop_name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+      id = of_alias_get_id(dev->of_node, "sdhc");
+
+	arr = devm_kzalloc(dev, sz * sizeof(*arr), GFP_KERNEL);
+	if (!arr) {
+		dev_err(dev, "%s failed allocating memory\n", prop_name);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = of_property_read_u32_array(np, prop_name, arr, sz);
+	if (ret < 0) {
+		dev_err(dev, "%s failed reading array %d\n", prop_name, ret);
+		goto out;
+	}
+	*out = arr;
+out:
+	if (ret)
+		*len = 0;
+	return ret;
+}
+#endif
 static int sdhci_msm_dt_get_array(struct device *dev, const char *prop_name,
 				 u32 **out, int *len, u32 size)
 {
@@ -1275,6 +1346,32 @@ static int sdhci_msm_dt_parse_vreg_info(struct device *dev,
 
 	return ret;
 }
+
+#ifdef CONFIG_HUAWEI_KERNEL
+static int sdhci_msm_dt_get_poll_info(void)
+{
+	int ret = 0;
+	char prop_name[MAX_PROP_SIZE];
+	struct device_node *np = NULL;
+
+	/*try to get the device node huawei-polling-support.*/
+	np = of_find_compatible_node(NULL,NULL,"huawei-polling-support");
+	if(!np)
+	{
+		/*if np is NULL,return 0.*/
+		return ret;
+	}
+	snprintf(prop_name, MAX_PROP_SIZE,
+			"%s", "huawei,support-polling");
+	if (of_get_property(np, prop_name, NULL))
+	{
+		/*if we can get huawei,support-polling,return 1.*/
+		ret = 1;
+	}
+
+	return ret;
+}
+#endif
 
 /* GPIO/Pad data extraction */
 static int sdhci_msm_parse_pinctrl_info(struct device *dev,
@@ -1421,6 +1518,7 @@ static struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev)
 		pdata->cpu_dma_latency_us = cpu_dma_latency;
 	else
 		pdata->cpu_dma_latency_us = MSM_MMC_DEFAULT_CPU_DMA_LATENCY;
+#ifndef CONFIG_HUAWEI_KERNEL
 	if (sdhci_msm_dt_get_array(dev, "qcom,clk-rates",
 			&clk_table, &clk_table_len, 0)) {
 		dev_err(dev, "failed parsing supported clock rates\n");
@@ -1430,6 +1528,38 @@ static struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev)
 		dev_err(dev, "Invalid clock table\n");
 		goto out;
 	}
+#else
+    /* For 8916 platform hs200 mode is disable by default, enable this feature in some product.*/
+    if((EMMC_NO == of_alias_get_id(dev->of_node, "sdhc")) && huawei_hs200_support())
+    {
+        struct device_node *hs200_np = of_find_compatible_node(NULL,NULL,"huawei,huawei-clk-rates");
+
+		if(NULL != hs200_np)
+		{
+            if (huawei_sdhci_msm_dt_get_array(dev,hs200_np, "huawei,clk-rates",
+                    &clk_table, &clk_table_len, 0)) {
+                dev_err(dev, "failed parsing supported clock rates\n");
+                goto out;
+            }  	
+            if (!clk_table || !clk_table_len) {
+                dev_err(dev, "Invalid clock table\n");
+                goto out;
+            }
+		}
+    }
+    else
+    {
+        if (sdhci_msm_dt_get_array(dev, "qcom,clk-rates",
+                &clk_table, &clk_table_len, 0)) {
+            dev_err(dev, "failed parsing supported clock rates\n");
+            goto out;
+        }
+        if (!clk_table || !clk_table_len) {
+            dev_err(dev, "Invalid clock table\n");
+            goto out;
+        }
+    }
+#endif
 	pdata->sup_clk_table = clk_table;
 	pdata->sup_clk_cnt = clk_table_len;
 
@@ -1457,14 +1587,47 @@ static struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev)
 		dev_err(dev, "failed parsing gpio data\n");
 		goto out;
 	}
-
+    /* For 8916 platform hs200 mode is disable by default, enable this feature in some product.*/
+#ifndef CONFIG_HUAWEI_KERNEL
 	len = of_property_count_strings(np, "qcom,bus-speed-mode");
+#else
 
+    if((EMMC_NO == of_alias_get_id(dev->of_node, "sdhc")) && huawei_hs200_support())
+    {
+        struct device_node *bus_mode_np = of_find_compatible_node(NULL,NULL,"huawei,huawei-bus-speed-mode");
+		if(NULL != bus_mode_np)
+        {
+            len = of_property_count_strings(bus_mode_np, "huawei,bus-speed-mode");
+        }
+    }
+    else
+    {
+        len = of_property_count_strings(np, "qcom,bus-speed-mode");
+    }
+#endif
 	for (i = 0; i < len; i++) {
 		const char *name = NULL;
 
+        /* For 8916 platform hs200 mode is disable by default, enable this feature in some product.*/
+#ifndef CONFIG_HUAWEI_KERNEL
 		of_property_read_string_index(np,
 			"qcom,bus-speed-mode", i, &name);
+#else
+        if((EMMC_NO == of_alias_get_id(dev->of_node, "sdhc")) && huawei_hs200_support())
+        {
+            struct device_node *bus_mode_np = of_find_compatible_node(NULL,NULL,"huawei,huawei-bus-speed-mode");
+			if(NULL != bus_mode_np)
+			{
+                of_property_read_string_index(bus_mode_np,
+			        "huawei,bus-speed-mode", i, &name);
+			}
+        }
+		else
+		{
+		    of_property_read_string_index(np,
+			    "qcom,bus-speed-mode", i, &name);
+		}
+#endif
 		if (!name)
 			continue;
 
@@ -2743,6 +2906,7 @@ void sdhci_msm_dump_vendor_regs(struct sdhci_host *host)
 		readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC),
 		readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC_ADMA_ERR_ADDR0),
 		readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC_ADMA_ERR_ADDR1));
+	pr_info("Vndr func2: 0x%08x\n", readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC_FUNC2));
 
 	/*
 	 * tbsel indicates [2:0] bits and tbsel2 indicates [7:4] bits
@@ -2848,6 +3012,49 @@ static void sdhci_set_default_hw_caps(struct sdhci_msm_host *msm_host,
 	}
 }
 
+/*
+ * To get the gpio infor when SD plugged in, based on the device tree info of SD
+ * return 1, 	mean high active and set MMC_CAP2_CD_ACTIVE_HIGH bit
+ * return 0, 	mean low  active
+ * return -1, 	mean error
+ **/
+static int sdhci_msm_set_gpio_info(struct sdhci_msm_pltfm_data *pdata)
+{
+	int ret = -1;
+	char prop_name[MAX_PROP_SIZE] = {0};
+	struct device_node *np = NULL;
+
+	if(!pdata)
+	{
+		/*if pdata is NULL,return 0.*/
+		return ret;
+	}
+
+	/*try to get the device node huawei-gpio-info.*/
+	np = of_find_compatible_node(NULL,NULL,"huawei-gpio-info");
+	if(!np)
+	{
+		/*if np is NULL, default is high: return 1.*/
+		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
+		ret = 1;
+		return ret;
+	}
+
+	snprintf(prop_name, MAX_PROP_SIZE,
+			"%s", "huawei,voltage-active-high");
+	if (of_get_property(np, prop_name, NULL))
+	{
+		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
+		ret = 1;
+	}
+	else
+	{
+		pdata->caps2 &= ~MMC_CAP2_CD_ACTIVE_HIGH;
+		ret = 0;
+	}
+
+	return ret;
+}
 static int sdhci_msm_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
@@ -2898,6 +3105,18 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		if (!msm_host->pdata) {
 			dev_err(&pdev->dev, "DT parsing error\n");
 			goto pltfm_free;
+		}
+		if(sdhci_msm_set_gpio_info(msm_host->pdata) == 1)
+		{
+			pr_err("the voltage of gpio is high when insert the sdcard.\n");
+		}
+		else if (sdhci_msm_set_gpio_info(msm_host->pdata) == 0)
+		{
+			pr_err("the voltage of gpio is low when insert the sdcard.\n");
+		}
+		else
+		{
+			pr_err("sdhci_msm_set_gpio_info failed.\n");
 		}
 	} else {
 		dev_err(&pdev->dev, "No device tree node\n");
@@ -3104,7 +3323,17 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	msm_host->mmc->caps |= msm_host->pdata->mmc_bus_width;
 	msm_host->mmc->caps |= msm_host->pdata->caps;
 	msm_host->mmc->caps2 |= msm_host->pdata->caps2;
-	msm_host->mmc->caps2 |= MMC_CAP2_CORE_RUNTIME_PM;
+
+#ifdef CONFIG_HUAWEI_KERNEL
+    if(!strcmp(mmc_hostname(msm_host->mmc), "mmc1")){
+        pr_info("remove sdcard PM RUNTIME\n");
+    }
+    else{
+        msm_host->mmc->caps2 |= MMC_CAP2_CORE_RUNTIME_PM;
+    }
+#else
+    msm_host->mmc->caps2 |= MMC_CAP2_CORE_RUNTIME_PM;
+#endif
 	msm_host->mmc->caps2 |= MMC_CAP2_PACKED_WR;
 	msm_host->mmc->caps2 |= MMC_CAP2_PACKED_WR_CONTROL;
 	msm_host->mmc->caps2 |= (MMC_CAP2_BOOTPART_NOACC |
@@ -3127,6 +3356,28 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 	init_completion(&msm_host->pwr_irq_completion);
 
+#ifdef CONFIG_HUAWEI_KERNEL
+	if((!strcmp(mmc_hostname(msm_host->mmc), "mmc1"))&&(sdhci_msm_dt_get_poll_info()))
+	{
+		/*add the polling flag to caps to support polling.*/
+		pr_info("polling has enable sucess.\n");
+		host->mmc->caps |= MMC_CAP_NEEDS_POLL;
+		/*in polling mode, set status_gpio to be unvalued */
+		msm_host->pdata->status_gpio = -1;
+	}
+	else
+	{
+		if (gpio_is_valid(msm_host->pdata->status_gpio)) {
+			ret = mmc_gpio_request_cd(msm_host->mmc,
+					msm_host->pdata->status_gpio);
+			if (ret) {
+				dev_err(&pdev->dev, "%s: Failed to request card detection IRQ %d\n",
+						__func__, ret);
+				goto vreg_deinit;
+			}
+		}
+	}
+#else
 	if (gpio_is_valid(msm_host->pdata->status_gpio)) {
 		/*
 		 * Set up the card detect GPIO in active configuration before
@@ -3143,7 +3394,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 			goto vreg_deinit;
 		}
 	}
-
+#endif
 	if ((sdhci_readl(host, SDHCI_CAPABILITIES) & SDHCI_CAN_64BIT) &&
 		(dma_supported(mmc_dev(host->mmc), DMA_BIT_MASK(64)))) {
 		host->dma_mask = DMA_BIT_MASK(64);

@@ -1,0 +1,18 @@
+/ {
+    huawei_audio_info {
+        compatible = "huawei,hw_audio_info";
+        product-identifier = "g760_utl";
+        builtin-master-mic-exist;
+        builtin-2nd-mic-exist;
+        hand_held_dual_mic_strategy;
+        status = "ok";
+        aud_param_ver = "g760_tl_audio_B01";
+        loud_speaker_master_mic_strategy;
+        product-btsco-nrec-adapt;
+    };
+};
+&soc {
+    sound {
+        qcom,msm-micbias1-ext-cap;
+    };
+};

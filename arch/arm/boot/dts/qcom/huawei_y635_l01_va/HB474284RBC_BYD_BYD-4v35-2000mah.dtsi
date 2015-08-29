@@ -1,0 +1,130 @@
+/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+qcom,qrd-4v35-2000mAh-byd-data {
+	qcom,fcc-mah = <2000>;
+	qcom,default-rbatt-mohm = <132>;
+	qcom,rbatt-capacitive-mohm = <50>;
+	qcom,flat-ocv-threshold-uv = <3800000>;
+	qcom,max-voltage-uv = <4350000>;
+	qcom,v-cutoff-uv = <3400000>;
+	qcom,chg-term-ua = <100000>;
+	qcom,batt-id-kohm = <10>;
+	qcom,battery-type = "HB474284RBC_BYD_BYD";
+
+	qcom,warm-bat-decidegc = <420>;
+	qcom,warm-bat-mv = <4100>;
+	qcom,ibatmax-warm-ma = <800>;
+
+	qcom,cool-bat-decidegc = <100>;
+	qcom,cool-bat-mv = <4350>;
+	qcom,ibatmax-cool-ma = <600>;
+
+	qcom,hot-bat-decidegc = <520>;
+	qcom,cold-bat-decidegc = <0>;
+	qcom,rbatt-sf-lut {
+		qcom,lut-col-legend = <(-20) 0 25 40 60>;
+		qcom,lut-row-legend = <100 95 90 85 80>,
+				<75 70 65 60 55>,
+				<50 45 40 35 30>,
+				<25 20 16 13 11>,
+				<10 9 8 7 6>,
+				<5 4 3 2 1>,
+				<0>;
+		qcom,lut-data =	<1365 304 99 79 71>,
+				<1363 304 99 79 71>,
+				<1230 303 102 79 71>,
+				<1159 309 105 81 73>,
+				<1155 320 111 84 74>,
+				<1069 363 117 89 76>,
+				<1091 306 123 92 79>,
+				<1115 288 130 98 83>,
+				<1139 285 130 102 86>,
+				<1170 283 105 88 77>,
+				<1212 289 102 80 73>,
+				<1268 297 103 82 73>,
+				<1339 315 107 86 77>,
+				<1420 345 111 89 80>,
+				<1517 386 114 88 79>,
+				<1648 436 114 83 74>,
+				<1891 494 112 83 73>,
+				<2273 555 114 83 73>,
+				<2595 606 116 82 73>,
+				<2612 652 123 87 75>,
+				<2855 686 130 90 76>,
+				<3136 727 136 92 77>,
+				<3462 763 143 95 78>,
+				<3850 798 148 94 76>,
+				<4353 830 152 92 76>,
+				<4958 873 156 94 78>,
+				<5799 927 167 99 81>,
+				<7252 999 185 108 86>,
+				<10556 1159 213 122 98>,
+				<21248 2222 315 181 150>,
+				<57716 21395 11633 11548 9224>;
+	};
+
+	qcom,fcc-temp-lut {
+		qcom,lut-col-legend = <(-20) 0 25 40 60>;
+		qcom,lut-data = <2036 2060 2060 2058 2054>;
+	};
+
+	qcom,pc-temp-ocv-lut {
+		qcom,lut-col-legend = <(-20) 0 25 40 60>;
+		qcom,lut-row-legend = <100 95 90 85 80>,
+				<75 70 65 60 55>,
+				<50 45 40 35 30>,
+				<25 20 16 13 11>,
+				<10 9 8 7 6>,
+				<5 4 3 2 1>,
+				<0>;
+		qcom,lut-data =   <4336 4335 4331 4326 4320>,
+				       <4235 4253 4261 4260 4256>,
+				       <4168 4194 4204 4204 4200>,
+				       <4112 4141 4152 4151 4148>,
+				       <4068 4095 4102 4100 4096>,
+				       <3961 4052 4060 4054 4049>,
+				       <3922 3972 3998 4003 4005>,
+				       <3885 3928 3964 3967 3965>,
+				       <3852 3890 3924 3926 3924>,
+				       <3826 3856 3874 3878 3878>,
+				       <3808 3828 3842 3844 3844>,
+				       <3793 3806 3820 3822 3820>,
+				       <3779 3791 3800 3802 3801>,
+				       <3766 3782 3785 3786 3784>,
+				       <3754 3772 3772 3768 3762>,
+				       <3739 3758 3758 3748 3736>,
+				       <3722 3736 3735 3726 3711>,
+				       <3703 3714 3706 3698 3684>,
+				       <3684 3702 3690 3682 3670>,
+				       <3666 3696 3687 3680 3668>,
+				       <3653 3693 3686 3679 3667>,
+				       <3638 3688 3684 3677 3665>,
+				       <3618 3680 3680 3673 3660>,
+				       <3591 3664 3668 3660 3644>,
+				       <3560 3636 3640 3630 3609>,
+				       <3518 3596 3596 3586 3564>,
+				       <3465 3543 3542 3531 3510>,
+				       <3390 3472 3472 3462 3442>,
+				       <3298 3376 3378 3369 3352>,
+				       <3174 3232 3239 3229 3206>,
+				<3000 3000 3000 3000 3000>;
+	};
+	qcom,ibat-acc-lut {
+		qcom,lut-col-legend = <(-20) 0 25>;
+		qcom,lut-row-legend = <0 250 500 1000>;
+		qcom,lut-data = <1974 2018 2018>,
+                        <936 1917 1995>,
+                        <562 1696 1977>,
+                        <102 1349 1934>;
+};
+};

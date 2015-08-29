@@ -31,7 +31,9 @@
 #include <soc/qcom/socinfo.h>
 #include <soc/qcom/smem.h>
 #include <soc/qcom/boot_stats.h>
-
+#ifdef CONFIG_HUAWEI_SENSOR_SELF_ADAPT
+#include <linux/hw_sensor_info.h>
+#endif
 #define BUILD_ID_LENGTH 32
 #define SMEM_IMAGE_VERSION_BLOCKS_COUNT 32
 #define SMEM_IMAGE_VERSION_SINGLE_BLOCK_SIZE 128
@@ -43,6 +45,9 @@
 #define SMEM_IMAGE_VERSION_OEM_OFFSET 96
 #define SMEM_IMAGE_VERSION_PARTITION_APPS 10
 
+#ifdef CONFIG_HUAWEI_KERNEL
+#define HW_BOARDID_BEGIN_NUM 8000
+#endif
 enum {
 	HW_PLATFORM_UNKNOWN = 0,
 	HW_PLATFORM_SURF    = 1,
@@ -651,10 +656,31 @@ msm_get_hw_platform(struct device *dev,
 	uint32_t hw_type;
 	hw_type = socinfo_get_platform_type();
 
+#ifdef CONFIG_HUAWEI_KERNEL
+    if(hw_type >= HW_BOARDID_BEGIN_NUM)
+	{
+         hw_type = HW_PLATFORM_QRD;
+	}else if(hw_type >= HW_PLATFORM_INVALID)
+    {
+         hw_type = HW_PLATFORM_UNKNOWN;
+	}
+#endif
 	return snprintf(buf, PAGE_SIZE, "%-.32s\n",
 			hw_platform[hw_type]);
 }
+#ifdef CONFIG_HUAWEI_SENSOR_SELF_ADAPT
+static ssize_t
+msm_get_huawei_product(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	const char *product_ver = NULL;
+	product_ver = get_sensor_info_of_product_name();
 
+	return snprintf(buf, PAGE_SIZE, "%-.32s\n",
+			product_ver);
+}
+#endif
 static ssize_t
 msm_get_platform_version(struct device *dev,
 				struct device_attribute *attr,
@@ -894,7 +920,10 @@ static struct device_attribute msm_soc_attr_build_id =
 
 static struct device_attribute msm_soc_attr_hw_platform =
 	__ATTR(hw_platform, S_IRUGO, msm_get_hw_platform, NULL);
-
+#ifdef CONFIG_HUAWEI_SENSOR_SELF_ADAPT
+static struct device_attribute msm_soc_attr_huawei_product =
+	__ATTR(huawei_product, S_IRUSR|S_IRGRP, msm_get_huawei_product, NULL);
+#endif
 
 static struct device_attribute msm_soc_attr_platform_version =
 	__ATTR(platform_version, S_IRUGO,
@@ -1018,6 +1047,10 @@ static void __init populate_soc_sysfs_files(struct device *msm_soc_device)
 	case 3:
 		device_create_file(msm_soc_device,
 					&msm_soc_attr_hw_platform);
+		#ifdef CONFIG_HUAWEI_SENSOR_SELF_ADAPT
+		device_create_file(msm_soc_device,
+				&msm_soc_attr_huawei_product);
+		#endif
 	case 2:
 		device_create_file(msm_soc_device,
 					&msm_soc_attr_raw_id);

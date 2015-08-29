@@ -68,6 +68,28 @@
 #include	<linux/regulator/consumer.h>
 #include	<linux/of_gpio.h>
 #include	<linux/sensors.h>
+#ifdef CONFIG_HUAWEI_HW_DEV_DCT
+#include	<linux/hw_dev_dec.h>
+#endif
+
+#include <misc/app_info.h>
+
+
+#ifdef CONFIG_HUAWEI_KERNEL
+#define DEFAULT_MIN_INTERVAL 5
+#define DEFAULT_POLL_INTERVAL 200
+#define DEFAULT_G_RANGE		2
+/* gsensor map direction : 1--bottom*/
+#define GS_MAP_DIRECTION_BOTTOM 1
+#define GS_MAP_DIRECTION_TOP 0
+#define DEFAULT_GS_MAP_DIRECTION  GS_MAP_DIRECTION_TOP
+#define GS_MAP_DIRECTION_BOTTOM_LEFT_TOP 2
+#define DBG_INTERVAL_1S 			1000
+
+#endif
+
+#define MAX_ACCEL_VAL 1054   /*9.8065/1024*MAX_ACCEL_VAL=10.1*/
+#define MIN_ACCEL_VAL -1054   /*-9.8065/1024*MAX_ACCEL_VAL=-10.1*/
 
 #define	DEBUG	1
 
@@ -79,9 +101,29 @@
 #define SENSITIVITY_8G		4	/**	mg/LSB	*/
 #define SENSITIVITY_16G		12	/**	mg/LSB	*/
 
+#ifdef CONFIG_HUAWEI_KERNEL
+static int lis3dh_debug_mask = 1;
+module_param_named(lis3dh_debug, lis3dh_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
+#define LIS3DH_ERR(x...) do {\
+    if (lis3dh_debug_mask >=0) \
+        printk(KERN_ERR x);\
+    } while (0)
+#define LIS3DH_WARN(x...) do {\
+    if (lis3dh_debug_mask >=0) \
+        printk(KERN_ERR x);\
+    } while (0)
+#define LIS3DH_INFO(x...) do {\
+    if ((KERNEL_HWFLOW)  && (lis3dh_debug_mask >=1)) \
+        printk(KERN_ERR x);\
+    } while (0)
+#define LIS3DH_DEBUG(x...) do {\
+    if ((KERNEL_HWFLOW)  && (lis3dh_debug_mask >=2)) \
+        printk(KERN_ERR x);\
+    } while (0)
+#endif
 
-
+#ifndef CONFIG_HUAWEI_KERNEL
 /* Accelerometer Sensor Operating Mode */
 #define LIS3DH_ACC_ENABLE	0x01
 #define LIS3DH_ACC_DISABLE	0x00
@@ -174,7 +216,11 @@
 #define	FUZZ			0
 #define	FLAT			0
 #define	I2C_RETRY_DELAY		5
+#ifdef CONFIG_HUAWEI_KERNEL
+#define	I2C_RETRIES		3
+#else
 #define	I2C_RETRIES		5
+#endif
 #define	I2C_AUTO_INCREMENT	0x80
 
 /* RESUME STATE INDICES */
@@ -201,7 +247,7 @@
 
 #define	RESUME_ENTRIES		17
 /* end RESUME STATE INDICES */
-
+#endif
 
 struct {
 	unsigned int cutoff_ms;
@@ -216,7 +262,7 @@ struct {
 		{  100, ODR10   },
 		{ 1000, ODR1    },
 };
-
+#ifndef CONFIG_HUAWEI_KERNEL
 struct lis3dh_acc_data {
 	struct i2c_client *client;
 	struct lis3dh_acc_platform_data *pdata;
@@ -251,6 +297,7 @@ struct lis3dh_acc_data {
 	u8 reg_addr;
 #endif
 };
+#endif
 
 static struct sensors_classdev lis3dh_acc_cdev = {
 	.name = "lis3dh-accel",
@@ -269,13 +316,14 @@ static struct sensors_classdev lis3dh_acc_cdev = {
 	.sensors_enable = NULL,
 	.sensors_poll_delay = NULL,
 };
-
+#ifndef CONFIG_HUAWEI_KERNEL
 struct sensor_regulator {
 	struct regulator *vreg;
 	const char *name;
 	u32	min_uV;
 	u32	max_uV;
 };
+#endif
 
 struct sensor_regulator lis3dh_acc_vreg[] = {
 	{NULL, "vdd", 1700000, 3600000},
@@ -286,6 +334,9 @@ static int lis3dh_acc_config_regulator(struct lis3dh_acc_data *acc, bool on)
 {
 	int rc = 0, i;
 	int num_reg = sizeof(lis3dh_acc_vreg) / sizeof(struct sensor_regulator);
+#ifdef CONFIG_HUAWEI_DSM
+	struct sensor_regulator *lis3dh_acc_vreg = acc->lis3dh_acc_vreg;
+#endif
 
 	if (on) {
 		for (i = 0; i < num_reg; i++) {
@@ -350,6 +401,88 @@ error_vdd:
 	}
 	return rc;
 }
+#ifdef CONFIG_HUAWEI_KERNEL
+static int lis3dh_acc_i2c_read(struct lis3dh_acc_data *acc,
+				u8 *buf, int len)
+{
+	int err;
+	int tries = 0;
+		/*delete it , use short code segment */
+	struct i2c_msg	msgs[] = {
+		{
+			.addr = acc->client->addr,
+			.flags = acc->client->flags & I2C_M_TEN,
+			.len = 1,
+			.buf = buf,
+		},
+		{
+			.addr = acc->client->addr,
+			.flags = (acc->client->flags & I2C_M_TEN) | I2C_M_RD,
+			.len = len,
+			.buf = buf,
+		},
+	};
+
+	do {
+		mutex_lock(&acc->lock_i2c);
+		err = i2c_transfer(acc->client->adapter, msgs, 2);
+		mutex_unlock(&acc->lock_i2c);
+		if (err != 2)
+			msleep_interruptible(I2C_RETRY_DELAY);
+	} while ((err != 2) && (++tries < I2C_RETRIES));
+
+	if (err != 2) {
+		err = -EIO;
+		dev_err(&acc->client->dev,"---------cut here-------\n"
+			"WARNING: at %s %d read transfer %s() err=%d\n",__FILE__,__LINE__,__func__,err);
+#ifdef CONFIG_HUAWEI_DSM
+		acc->lis3dh_dsm_operation.dump_i2c_status(acc, err);
+#endif
+
+	} else {
+		err = 0;
+	}
+
+	return err;
+}
+
+static int lis3dh_acc_i2c_write(struct lis3dh_acc_data *acc, u8 *buf, int len)
+{
+	int err;
+	int tries = 0;
+		/*delete it , use short code segment */
+
+	struct i2c_msg msgs[] = {
+		{
+			.addr = acc->client->addr,
+			.flags = acc->client->flags & I2C_M_TEN,
+			.len = len + 1,
+			.buf = buf,
+		 },
+	};
+
+	do {
+		mutex_lock(&acc->lock_i2c);
+		err = i2c_transfer(acc->client->adapter, msgs, 1);
+		mutex_unlock(&acc->lock_i2c);
+		if (err != 1)
+			msleep_interruptible(I2C_RETRY_DELAY);
+	} while ((err != 1) && (++tries < I2C_RETRIES));
+
+	if (err != 1) {
+		err = -EIO;
+		dev_err(&acc->client->dev,"---------cut here-------\n"
+			"WARNING: at %s %d write transfer %s() err=%d\n",__FILE__,__LINE__,__func__,err);
+#ifdef CONFIG_HUAWEI_DSM
+		acc->lis3dh_dsm_operation.dump_i2c_status(acc, err);
+#endif
+	} else {
+		err = 0;
+	}
+
+	return err;
+}
+#else
 
 static int lis3dh_acc_i2c_read(struct lis3dh_acc_data *acc,
 				u8 *buf, int len)
@@ -395,10 +528,10 @@ static int lis3dh_acc_i2c_write(struct lis3dh_acc_data *acc, u8 *buf, int len)
 
 	struct i2c_msg msgs[] = {
 		{
-		 .addr = acc->client->addr,
+			.addr = acc->client->addr,
 			.flags = acc->client->flags & I2C_M_TEN,
-		 .len = len + 1,
-		 .buf = buf,
+			.len = len + 1,
+			.buf = buf,
 		 },
 	};
 
@@ -417,6 +550,7 @@ static int lis3dh_acc_i2c_write(struct lis3dh_acc_data *acc, u8 *buf, int len)
 
 	return err;
 }
+#endif
 
 static int lis3dh_acc_hw_init(struct lis3dh_acc_data *acc)
 {
@@ -544,9 +678,19 @@ static int lis3dh_acc_device_power_on(struct lis3dh_acc_data *acc)
 	if (!acc->hw_initialized) {
 		err = lis3dh_acc_hw_init(acc);
 		if (acc->hw_working == 1 && err < 0) {
+			dev_err(&acc->client->dev,"%s:%d lis3dh acc hw init failed: %d\n", __FUNCTION__, __LINE__, err);
 			lis3dh_acc_device_power_off(acc);
 			return err;
 		}
+#ifdef CONFIG_HUAWEI_KERNEL
+		/*if probe first call this func and can't communicate with this slave address,acc->hw_working == 0 */
+		/*we should return error code, and go out of probe function as soon as possible */
+		else if(err == -EIO){
+			lis3dh_acc_config_regulator(acc, false);
+			dev_err(&acc->client->dev,"%s:%d lis3dh acc hw init failed: %d\n", __FUNCTION__, __LINE__, err);
+			return err;
+		}
+#endif
 	}
 
 	if (acc->hw_initialized) {
@@ -747,6 +891,17 @@ static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,
 	xyz[2] = ((acc->pdata->negate_z) ? (-hw_d[acc->pdata->axis_map_z])
 		   : (hw_d[acc->pdata->axis_map_z]));
 
+	#ifdef CONFIG_HUAWEI_KERNEL
+	if ((xyz[0] == 0) && (xyz[1] == 0) && (xyz[2] == 0)) {
+		LIS3DH_WARN("%s:%d accelerate axis x=0,y=0,z=0\n", __FUNCTION__, __LINE__);
+	}
+	if ((xyz[0] > MAX_ACCEL_VAL) | (xyz[1] > MAX_ACCEL_VAL) | (xyz[2] > MAX_ACCEL_VAL)) {
+		LIS3DH_DEBUG("%s:%d read x=%d, y=%d, z=%d\n", __FUNCTION__, __LINE__, xyz[0], xyz[1], xyz[2]);
+	}
+	if ((xyz[0] < MIN_ACCEL_VAL) | (xyz[1] < MIN_ACCEL_VAL) | (xyz[2] < MIN_ACCEL_VAL)) {
+		LIS3DH_DEBUG("%s:%d read x=%d, y=%d, z=%d\n", __FUNCTION__, __LINE__, xyz[0], xyz[1], xyz[2]);
+	}
+	#endif
 	#ifdef DEBUG
 	dev_dbg(&acc->client->dev, "%s read x=%d, y=%d, z=%d\n",
 			LIS3DH_ACC_DEV_NAME, xyz[0], xyz[1], xyz[2]);
@@ -757,15 +912,40 @@ static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,
 static void lis3dh_acc_report_values(struct lis3dh_acc_data *acc,
 					int *xyz)
 {
+#ifdef CONFIG_HUAWEI_DSM
+	acc->lis3dh_dsm_operation.judge_check_excep(xyz,acc);
+#endif
+
+
 	input_report_abs(acc->input_dev, ABS_X, xyz[0]);
 	input_report_abs(acc->input_dev, ABS_Y, xyz[1]);
 	input_report_abs(acc->input_dev, ABS_Z, xyz[2]);
 	input_sync(acc->input_dev);
+
+	#ifdef CONFIG_HUAWEI_KERNEL
+	//print xyz value one time only when enable
+	if(acc->print_xyz_flag)
+	{
+		acc->print_xyz_flag = false;
+		LIS3DH_INFO("%s,xyz[0]=%d, xyz[1]=%d, xyz[2]=%d\n", __func__, xyz[0],  xyz[1],xyz[2]);
+	}
+
+	if( (lis3dh_debug_mask > 1) && false == acc->queued_debug_work_flag)
+	{
+		schedule_delayed_work(&acc->debug_work, msecs_to_jiffies(DBG_INTERVAL_1S));
+		acc->queued_debug_work_flag = true;
+	}
+	#endif
 }
 
 static int lis3dh_acc_enable(struct lis3dh_acc_data *acc)
 {
 	int err;
+	#ifdef CONFIG_HUAWEI_KERNEL
+	LIS3DH_INFO("%s: acc->enabled=%d",__func__, atomic_read(&acc->enabled));
+	acc->print_xyz_flag = true;
+	acc->queued_debug_work_flag = false;
+	#endif
 
 	if (!atomic_cmpxchg(&acc->enabled, 0, 1)) {
 		if (pinctrl_select_state(acc->pinctrl, acc->pin_default))
@@ -774,6 +954,7 @@ static int lis3dh_acc_enable(struct lis3dh_acc_data *acc)
 
 		err = lis3dh_acc_device_power_on(acc);
 		if (err < 0) {
+			dev_err(&acc->client->dev, "%s:%d lis3dh acc device power on failed, err:%d!\n", __FUNCTION__, __LINE__, err);
 			atomic_set(&acc->enabled, 0);
 			return err;
 		}
@@ -786,8 +967,19 @@ static int lis3dh_acc_enable(struct lis3dh_acc_data *acc)
 
 static int lis3dh_acc_disable(struct lis3dh_acc_data *acc)
 {
+	#ifdef CONFIG_HUAWEI_KERNEL
+	LIS3DH_INFO("%s: acc->enabled=%d",__func__, atomic_read(&acc->enabled));
+	#endif
 	if (atomic_cmpxchg(&acc->enabled, 1, 0)) {
 		cancel_delayed_work_sync(&acc->input_work);
+		#ifdef CONFIG_HUAWEI_KERNEL
+		cancel_delayed_work_sync(&acc->debug_work);
+		acc->print_xyz_flag = false;
+		#endif
+#ifdef CONFIG_HUAWEI_DSM
+		cancel_work_sync(&acc->excep_work);
+#endif
+
 		lis3dh_acc_device_power_off(acc);
 		if (pinctrl_select_state(acc->pinctrl, acc->pin_sleep))
 			dev_err(&acc->client->dev,
@@ -862,6 +1054,9 @@ static ssize_t attr_set_polling_rate(struct device *dev,
 	acc->pdata->poll_interval = interval_ms;
 	lis3dh_acc_update_odr(acc, interval_ms);
 	mutex_unlock(&acc->lock);
+	#ifdef CONFIG_HUAWEI_KERNEL
+	LIS3DH_INFO("%s,acc->pdata->poll_interval  = %d",__func__,acc->pdata->poll_interval );
+	#endif
 	return size;
 }
 
@@ -1157,6 +1352,9 @@ static int lis3dh_acc_poll_delay_set(struct sensors_classdev *sensors_cdev,
 	acc->pdata->poll_interval = delay_msec;
 	err = lis3dh_acc_update_odr(acc, delay_msec);
 	mutex_unlock(&acc->lock);
+	#ifdef CONFIG_HUAWEI_KERNEL
+	LIS3DH_INFO("%s,acc->pdata->poll_interval  = %d",__func__,acc->pdata->poll_interval );
+	#endif
 	return err;
 }
 
@@ -1173,6 +1371,38 @@ static int lis3dh_acc_enable_set(struct sensors_classdev *sensors_cdev,
 		err = lis3dh_acc_disable(acc);
 	return err;
 }
+/**
+*	print main registers and xyz vaules
+*/
+#ifdef CONFIG_HUAWEI_KERNEL
+static void dump_regs_xyz_values(struct work_struct *work)
+{
+	int err;
+	unsigned char reg[6];
+	struct lis3dh_acc_data *acceld = container_of((struct delayed_work *)work,
+			struct lis3dh_acc_data,	debug_work);
+
+	mutex_lock(&acceld->lock);
+	acceld->queued_debug_work_flag = false;
+	reg[0] = CTRL_REG1;
+	err = acceld->i2c_read(acceld, reg, 6);
+	if(err < 0){
+		LIS3DH_ERR("[lis3dh_err]%s,line %d: failed to read regs value",__func__,__LINE__);
+		return;
+	}
+
+	LIS3DH_INFO("%s,ctl_reg[0x20~0x25]=0x%2x, 0x%2x, 0x%2x, 0x%2x, 0x%2x, 0x%2x\n",__func__
+			,reg[0],reg[1],reg[2],reg[3],reg[4],reg[5]);
+
+#ifdef CONFIG_HUAWEI_DSM
+	LIS3DH_INFO("%s,raw_x=%d, raw_y=%d, raw_z=%d\n", __func__,
+	acceld->lis_gs_exception.xyz[0],
+	acceld->lis_gs_exception.xyz[1],
+	acceld->lis_gs_exception.xyz[2]);
+#endif
+	mutex_unlock(&acceld->lock);
+}
+#endif
 
 static void lis3dh_acc_input_work_func(struct work_struct *work)
 {
@@ -1249,6 +1479,11 @@ static int lis3dh_acc_input_init(struct lis3dh_acc_data *acc)
 	int err;
 
 	INIT_DELAYED_WORK(&acc->input_work, lis3dh_acc_input_work_func);
+	#ifdef CONFIG_HUAWEI_KERNEL
+	/* use delay work to debug x,y,z value, this will make cpu efficiently than old method*/
+	INIT_DELAYED_WORK(&acc->debug_work, dump_regs_xyz_values);
+	acc->queued_debug_work_flag = false;
+	#endif
 	acc->input_dev = input_allocate_device();
 	if (!acc->input_dev) {
 		err = -ENOMEM;
@@ -1329,6 +1564,93 @@ static int lis3dh_pinctrl_init(struct lis3dh_acc_data *acc)
 }
 
 #ifdef CONFIG_OF
+#ifdef CONFIG_HUAWEI_KERNEL
+static int lis3dh_parse_dt(struct device *dev,
+			struct lis3dh_acc_platform_data *pdata)
+{
+	struct device_node *np = dev->of_node;
+	u32 temp_val;
+	int rc;
+
+	rc = of_property_read_u32(np, "st,min-interval", &temp_val);
+	if (rc && (rc != -EINVAL)) {
+		pdata->min_interval = DEFAULT_MIN_INTERVAL;
+	} else {
+		pdata->min_interval = temp_val;
+	}
+
+	rc = of_property_read_u32(np, "st,init-interval", &temp_val);
+	if (rc && (rc != -EINVAL)) {
+		pdata->poll_interval = DEFAULT_POLL_INTERVAL;
+	} else {
+		pdata->poll_interval = temp_val;
+	}
+
+	rc = of_property_read_u32(np, "st,axis-map-bottom", &temp_val);
+	if (rc && (rc != -EINVAL)) {
+		dev_err(dev, "Unable to read axis-map-bottom, use default map_direction\n");
+		temp_val = DEFAULT_GS_MAP_DIRECTION;
+	}
+
+	switch(temp_val){
+		case GS_MAP_DIRECTION_BOTTOM:
+			pdata->axis_map_x = 0;
+			pdata->axis_map_y = 1;
+			pdata->axis_map_z = 2;
+			pdata->negate_x 	= 0;
+			pdata->negate_y	= 1;
+			pdata->negate_z 	= 1;
+			break;
+		case GS_MAP_DIRECTION_BOTTOM_LEFT_TOP:
+			pdata->axis_map_x = 1;
+			pdata->axis_map_y = 0;
+			pdata->axis_map_z = 2;
+			pdata->negate_x 	= 0;
+			pdata->negate_y	= 0;
+			pdata->negate_z 	= 1;
+			break;
+		default:
+			pdata->axis_map_x = 0;
+			pdata->axis_map_y = 1;
+			pdata->axis_map_z = 2;
+			pdata->negate_x 	= 1;
+			pdata->negate_y	= 1;
+			pdata->negate_z 	= 0;
+			break;
+	}
+
+	rc = of_property_read_u32(np, "st,g-range", &temp_val);
+	if (rc && (rc != -EINVAL)) {
+		dev_err(dev, "Unable to read g-range, use default g-range\n");
+		temp_val = DEFAULT_G_RANGE;
+	} else {
+		switch (temp_val) {
+		case 2:
+			pdata->g_range = LIS3DH_ACC_G_2G;
+			break;
+		case 4:
+			pdata->g_range = LIS3DH_ACC_G_4G;
+			break;
+		case 8:
+			pdata->g_range = LIS3DH_ACC_G_8G;
+			break;
+		case 16:
+			pdata->g_range = LIS3DH_ACC_G_16G;
+			break;
+		default:
+			pdata->g_range = LIS3DH_ACC_G_2G;
+			break;
+		}
+	}
+	pdata->gpio_int1 = of_get_named_gpio_flags(dev->of_node,
+				"st,gpio-int1", 0, NULL);
+
+	pdata->gpio_int2 = of_get_named_gpio_flags(dev->of_node,
+				"st,gpio-int2", 0, NULL);
+
+	return 0;
+}
+#else
 static int lis3dh_parse_dt(struct device *dev,
 			struct lis3dh_acc_platform_data *pdata)
 {
@@ -1413,6 +1735,7 @@ static int lis3dh_parse_dt(struct device *dev,
 				"st,gpio-int2", 0, NULL);
 	return 0;
 }
+#endif
 #else
 static int lis3dh_parse_dt(struct device *dev,
 			struct lis3dh_acc_platform_data *pdata)
@@ -1421,12 +1744,15 @@ static int lis3dh_parse_dt(struct device *dev,
 }
 #endif
 
+
 static int lis3dh_acc_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 
 	struct lis3dh_acc_data *acc;
 	int err = -1;
+
+	LIS3DH_INFO("%s,line %d: PROBE START.",__func__,__LINE__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "client not i2c capable\n");
@@ -1445,9 +1771,13 @@ static int lis3dh_acc_probe(struct i2c_client *client,
 
 
 	mutex_init(&acc->lock);
+	mutex_init(&acc->lock_i2c);
 	mutex_lock(&acc->lock);
 
 	acc->client = client;
+#ifdef CONFIG_HUAWEI_KERNEL
+	acc->device_exist = false;
+#endif
 	i2c_set_clientdata(client, acc);
 
 	acc->pdata = kmalloc(sizeof(*acc->pdata), GFP_KERNEL);
@@ -1481,6 +1811,16 @@ static int lis3dh_acc_probe(struct i2c_client *client,
 		dev_err(&client->dev, "failed to validate platform data\n");
 		goto exit_kfree_pdata;
 	}
+	memcpy(acc->lis3dh_acc_vreg,lis3dh_acc_vreg,2*sizeof(struct sensor_regulator));
+	acc->i2c_read = lis3dh_acc_i2c_read;
+#ifdef CONFIG_HUAWEI_DSM
+	err = lis_dsm_excep_init(acc);
+	if(err < 0){
+		LIS3DH_ERR("%s %d:lis_dsm_excep_init error! \n", __func__, __LINE__);
+		goto err_dsm_excep_exit;
+	}
+#endif
+
 
 	/* initialize pinctrl */
 	err = lis3dh_pinctrl_init(acc);
@@ -1556,7 +1896,6 @@ static int lis3dh_acc_probe(struct i2c_client *client,
 		goto err_power_off;
 	}
 
-
 	err = create_sysfs_interfaces(&client->dev);
 	if (err < 0) {
 		dev_err(&client->dev,
@@ -1624,8 +1963,23 @@ static int lis3dh_acc_probe(struct i2c_client *client,
 			"Can't select pinctrl sleep state\n");
 
 	mutex_unlock(&acc->lock);
-
-	dev_dbg(&client->dev, "%s: probed\n", LIS3DH_ACC_DEV_NAME);
+	set_sensors_list(G_SENSOR);
+#ifdef CONFIG_HUAWEI_HW_DEV_DCT
+	set_hw_dev_flag(DEV_I2C_G_SENSOR);
+#endif
+	err = set_sensor_input(ACC, acc->input_dev->dev.kobj.name);
+	if (err) {
+		dev_err(&client->dev, "%s set_sensor_input failed\n", __func__);
+	}
+	err = app_info_set("G-Sensor",  "ST LIS3DH");
+	if (err < 0)/*failed to add app_info*/
+	{
+		dev_err(&acc->client->dev,"%s %d:failed to add app_info\n", __func__, __LINE__);
+	}
+#ifdef CONFIG_HUAWEI_KERNEL
+	acc->device_exist = true;
+#endif
+	LIS3DH_INFO("%s,line %d: PROBE SUCCESS",__func__,__LINE__);
 
 	return 0;
 
@@ -1648,6 +2002,12 @@ err_power_off:
 err_pdata_init:
 	if (acc->pdata->exit)
 		acc->pdata->exit();
+
+#ifdef CONFIG_HUAWEI_DSM
+err_dsm_excep_exit:
+	lis_dsm_excep_exit(acc);
+#endif
+
 exit_kfree_pdata:
 	kfree(acc->pdata);
 err_mutexunlock:
@@ -1681,6 +2041,11 @@ static int lis3dh_acc_remove(struct i2c_client *client)
 
 	if (acc->pdata->exit)
 		acc->pdata->exit();
+#ifdef CONFIG_HUAWEI_DSM
+	lis_dsm_excep_exit(acc);
+#endif
+
+
 	kfree(acc->pdata);
 	kfree(acc);
 
@@ -1749,4 +2114,6 @@ module_exit(lis3dh_acc_exit);
 MODULE_DESCRIPTION("lis3dh digital accelerometer sysfs driver");
 MODULE_AUTHOR("Matteo Dameno, Carmine Iascone, Samuel Huo, STMicroelectronics");
 MODULE_LICENSE("GPL");
+
+
 

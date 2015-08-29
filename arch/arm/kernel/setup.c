@@ -57,6 +57,12 @@
 #include <asm/memblock.h>
 #include <asm/virt.h>
 
+/* DTS20141205XXXXX qidechun/yantongguang 2014-12-05 begin */ 
+#ifdef CONFIG_DUMP_SYS_INFO
+#include <linux/module.h>
+#include <linux/srecorder.h>
+#endif
+/* DTS20141205XXXXX qidechun/yantongguang 2014-12-05 end */ 
 #include "atags.h"
 
 
@@ -104,6 +110,13 @@ EXPORT_SYMBOL(boot_reason);
 unsigned int cold_boot;
 EXPORT_SYMBOL(cold_boot);
 
+#ifdef CONFIG_HUAWEI_KERNEL
+#ifndef HIDE_PRODUCT_INFO_KERNEL
+unsigned int hide_info;
+EXPORT_SYMBOL(hide_info);
+#endif
+#endif
+
 char* (*arch_read_hardware_id)(void);
 EXPORT_SYMBOL(arch_read_hardware_id);
 
@@ -144,6 +157,23 @@ EXPORT_SYMBOL(elf_platform);
 
 static const char *cpu_name;
 static const char *machine_name;
+
+/* DTS20141205XXXXX qidechun/yantongguang 2014-12-05 begin */ 
+#ifdef CONFIG_DUMP_SYS_INFO
+unsigned long get_cpu_name(void)
+{
+    return (unsigned long)&cpu_name;
+}
+EXPORT_SYMBOL(get_cpu_name);
+
+unsigned long get_machine_name(void)
+{
+    return (unsigned long)&machine_name;
+}
+EXPORT_SYMBOL(get_machine_name);
+#endif
+/* DTS20141205XXXXX qidechun/yantongguang 2014-12-05 end */ 
+
 static char __initdata cmd_line[COMMAND_LINE_SIZE];
 struct machine_desc *machine_desc __initdata;
 
@@ -641,7 +671,6 @@ int __init arm_add_memory(phys_addr_t start, phys_addr_t size)
  * Pick out the memory size.  We look for mem=size@start,
  * where start and size are "size[KkMm]"
  */
-
 static int __init early_mem(char *p)
 {
 	static int usermem __initdata = 0;
@@ -670,6 +699,41 @@ static int __init early_mem(char *p)
 	return 0;
 }
 early_param("mem", early_mem);
+
+#ifdef CONFIG_FEATURE_HUAWEI_EMERGENCY_DATA
+#define DATAMOUNT_FLAG_FAIL 0x0587C90A
+#define DATAMOUNT_FLAG_SUCCESS 0 // datamount_flag initialization value
+
+/*
+ * global variable datamount_flag has two values:
+ * 0 - init value
+ * 1 - reboot caused by ext4_handle_error, or sync_blockdev return EIO
+ */
+static unsigned int datamount_flag = DATAMOUNT_FLAG_SUCCESS;
+unsigned int get_datamount_flag(void)
+{
+    return datamount_flag;
+}
+EXPORT_SYMBOL(get_datamount_flag);
+void set_datamount_flag(int value)
+{
+    datamount_flag = value;
+}
+EXPORT_SYMBOL(set_datamount_flag);
+
+static int __init early_param_huaweitype(char * p)
+{
+    if (p)
+    {
+        if (!strcmp(p,"mountfail"))
+        {
+            datamount_flag = DATAMOUNT_FLAG_FAIL;
+        }
+    }
+    return 0;
+}
+early_param("androidboot.huawei_type", early_param_huaweitype);
+#endif
 
 static void __init request_standard_resources(struct machine_desc *mdesc)
 {
@@ -725,6 +789,63 @@ struct screen_info screen_info = {
  .orig_video_isVGA	= 1,
  .orig_video_points	= 8
 };
+#endif
+
+#ifdef CONFIG_HUAWEI_KERNEL
+
+typedef enum
+{
+    RUNMODE_FLAG_NORMAL,
+    RUNMODE_FLAG_FACTORY,
+    RUNMODE_FLAG_UNKNOW
+}hw_runmode_t;
+
+#define RUNMODE_FLAG_NORMAL_KEY     "normal"
+#define RUNMODE_FLAG_FACTORY_KEY    "factory"
+
+static hw_runmode_t runmode_factory = RUNMODE_FLAG_UNKNOW;
+
+static int __init init_runmode(char *str)
+{
+    if(!str || !(*str))
+    {
+        printk(KERN_CRIT"%s:get run mode fail\n",__func__);
+        return 0;
+    }
+
+    if(!strncmp(str, RUNMODE_FLAG_NORMAL_KEY, sizeof(RUNMODE_FLAG_NORMAL_KEY)-1))
+    {
+        runmode_factory = RUNMODE_FLAG_NORMAL;
+        printk(KERN_NOTICE "%s:run mode is normal\n", __func__);
+    }
+    else if(!strncmp(str, RUNMODE_FLAG_FACTORY_KEY, sizeof(RUNMODE_FLAG_FACTORY_KEY)-1))
+    {
+        runmode_factory = RUNMODE_FLAG_FACTORY;
+        printk(KERN_NOTICE "%s:run mode is factory\n", __func__);
+    }
+    else
+    {
+        runmode_factory = RUNMODE_FLAG_UNKNOW;
+        printk(KERN_CRIT "%s:run mode unknow,str=%-10s\n", __func__,str);
+        return 0;
+    }
+    return 1;
+}
+
+__setup("androidboot.huawei_swtype=", init_runmode);
+
+
+/* the function interface to check factory/normal mode in kernel */
+bool is_runmode_factory(void)
+{
+    if (RUNMODE_FLAG_FACTORY == runmode_factory)
+        return true;
+    else
+        return false;
+}
+
+EXPORT_SYMBOL(is_runmode_factory);
+
 #endif
 
 static int __init customize_machine(void)
@@ -944,6 +1065,9 @@ static int c_show(struct seq_file *m, void *v)
 {
 	int i, j;
 	u32 cpuid;
+#ifdef CONFIG_HUAWEI_KERNEL
+    static const char hide_machine_name[]="Qualcomm MSM 8926";
+#endif
 
 	for_each_present_cpu(i) {
 		/*
@@ -994,11 +1118,28 @@ static int c_show(struct seq_file *m, void *v)
 		}
 		seq_printf(m, "CPU revision\t: %d\n\n", cpuid & 15);
 	}
-
+#ifdef CONFIG_HUAWEI_KERNEL
+#ifdef HIDE_PRODUCT_INFO_KERNEL
+    seq_printf(m, "Hardware\t: %sH\n", hide_machine_name);
+#else
+    if(hide_info)
+    {
+        seq_printf(m, "Hardware\t: %s\n", hide_machine_name);
+    }
+    else
+    {
+        if (!arch_read_hardware_id)
+            seq_printf(m, "Hardware\t: %s\n", machine_name);
+        else
+            seq_printf(m, "Hardware\t: %s\n", arch_read_hardware_id());
+    }
+#endif
+#else
 	if (!arch_read_hardware_id)
 		seq_printf(m, "Hardware\t: %s\n", machine_name);
 	else
 		seq_printf(m, "Hardware\t: %s\n", arch_read_hardware_id());
+#endif
 	seq_printf(m, "Revision\t: %04x\n", system_rev);
 	seq_printf(m, "Serial\t\t: %08x%08x\n",
 		   system_serial_high, system_serial_low);

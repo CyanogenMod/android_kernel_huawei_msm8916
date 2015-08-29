@@ -32,13 +32,33 @@
 #include <linux/device.h>
 #include <linux/efi.h>
 #include <linux/fb.h>
-
+#include <linux/log_jank.h>
 #include <asm/fb.h>
+
+   extern int get_offline_cpu(void);
+   extern unsigned int cpufreq_get(unsigned int cpu);
 
 
     /*
      *  Frame buffer device initialization and setup routines
      */
+#ifdef CONFIG_HUAWEI_LCD
+extern int lcd_debug_mask ;
+
+#define LCD_INFO 2
+
+#ifndef LCD_LOG_INFO
+#define LCD_LOG_INFO( x...)					\
+do{											\
+	if( lcd_debug_mask >= LCD_INFO )		\
+	{										\
+		printk(KERN_ERR "[LCD_INFO] " x);	\
+	}										\
+											\
+}while(0)
+#endif
+#endif
+
 
 #define FBPIXMAPSIZE	(1024 * 8)
 
@@ -1048,18 +1068,34 @@ fb_blank(struct fb_info *info, int blank)
 {	
 	struct fb_event event;
 	int ret = -EINVAL, early_ret;
+	unsigned long timeout ;
+#ifdef CONFIG_HUAWEI_LCD
+	LCD_LOG_INFO("Enter %s, blank_mode = [%d].\n",__func__,blank);
+#endif
 
  	if (blank > FB_BLANK_POWERDOWN)
  		blank = FB_BLANK_POWERDOWN;
+#ifdef CONFIG_LOG_JANK
+    if(blank > 0)
+    {
+        LOG_JANK_V(JL_HWC_LCD_BLANK_START, "%s#T:%5lu", "JL_HWC_LCD_BLANK_START",getrealtime());
+    }
+    else
+    {
+        LOG_JANK_V(JL_HWC_LCD_UNBLANK_START, "%s#T:%5lu", "JL_HWC_LCD_UNBLANK_START",getrealtime());
+    }
+#endif
 
 	event.info = info;
 	event.data = &blank;
 
 	early_ret = fb_notifier_call_chain(FB_EARLY_EVENT_BLANK, &event);
-
+	timeout = jiffies ;
 	if (info->fbops->fb_blank)
  		ret = info->fbops->fb_blank(blank, info);
-
+	/* add for timeout print log */
+	LCD_LOG_INFO("%s: fb blank time = %u,offlinecpu = %d,curfreq = %d\n",
+			__func__,jiffies_to_msecs(jiffies-timeout),get_offline_cpu(),cpufreq_get(0));
 	if (!ret)
 		fb_notifier_call_chain(FB_EVENT_BLANK, &event);
 	else {
@@ -1070,7 +1106,19 @@ fb_blank(struct fb_info *info, int blank)
 		if (!early_ret)
 			fb_notifier_call_chain(FB_R_EARLY_EVENT_BLANK, &event);
 	}
-
+#ifdef CONFIG_HUAWEI_LCD
+	LCD_LOG_INFO("Exit %s, blank_mode = [%d].\n",__func__,blank);
+#endif
+#ifdef CONFIG_LOG_JANK
+    if(blank > 0)
+    {
+        LOG_JANK_V(JL_HWC_LCD_BLANK_END, "%s#T:%5lu", "JL_HWC_LCD_BLANK_END",getrealtime());
+    }
+    else
+    {
+        LOG_JANK_V(JL_HWC_LCD_UNBLANK_END, "%s#T:%5lu", "JL_HWC_LCD_UNBLANK_END",getrealtime());
+    }
+#endif
  	return ret;
 }
 

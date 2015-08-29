@@ -453,7 +453,14 @@ void __show_regs(struct pt_regs *regs)
 	}
 #endif
 
+#ifdef CONFIG_HUAWEI_KERNEL
+	if(!user_mode(regs))
+	{
+		show_extra_register_data(regs, 128);
+	}
+#else
 	show_extra_register_data(regs, 128);
+#endif
 }
 
 void show_regs(struct pt_regs * regs)

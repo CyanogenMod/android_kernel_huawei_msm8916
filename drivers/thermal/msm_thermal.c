@@ -354,6 +354,12 @@ static struct notifier_block msm_thermal_cpufreq_notifier = {
 	.notifier_call = msm_thermal_cpufreq_callback,
 };
 
+/*add for get the cpu offline  */
+int get_offline_cpu(void)
+{
+     return cpus_offlined;
+}
+
 static void update_cpu_freq(int cpu)
 {
 	int ret = 0;
@@ -1539,6 +1545,28 @@ static int msm_thermal_panic_callback(struct notifier_block *nfb,
 static struct notifier_block msm_thermal_panic_notifier = {
 	.notifier_call = msm_thermal_panic_callback,
 };
+
+#ifdef CONFIG_HUAWEI_DSM
+/* get thermal_zone2(tsens2) and thermal_zone4(tsen5) temerature*/
+int get_tsens_temp(uint32_t tsensor_id, long *temp)
+{
+	int ret = 0;
+	long *tsen_temp;
+	uint32_t tsen_id;
+
+	tsen_temp = temp;
+	tsen_id = tsensor_id;
+	ret = therm_get_temp(tsen_id, THERM_TSENS_ID, tsen_temp);
+	if (ret) {
+		pr_err("Unable to read temperature for tsen_id:%d. err:%d\n",
+			tsen_id, ret);
+		ret = -EINVAL;
+		return ret;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(get_tsens_temp);
+#endif
 
 static int set_threshold(uint32_t zone_id,
 	struct sensor_threshold *threshold)

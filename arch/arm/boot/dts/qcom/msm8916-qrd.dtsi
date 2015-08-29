@@ -21,7 +21,7 @@
 
 &soc {
 	i2c@78ba000 { /* BLSP1 QUP6 */
-		nfc-nci@e {
+/*		nfc-nci@e {
 			compatible = "qcom,nfc-nci";
 			reg = <0x0e>;
 			qcom,irq-gpio = <&msm_gpio 21 0x00>;
@@ -38,8 +38,8 @@
 			clocks = <&clock_rpm clk_bb_clk2_pin>;
 			clock-names = "ref_clk";
 		};
+*/		
 	};
-
 
 };
 
@@ -72,7 +72,7 @@
 			linux,input-type = <1>;
 			linux,code = <115>;
 			gpio-key,wakeup;
-			debounce-interval = <15>;
+			debounce-interval = <20>;
 		};
 	};
 };
@@ -105,7 +105,8 @@
 
 &sdhc_1 {
 	vdd-supply = <&pm8916_l8>;
-	qcom,vdd-voltage-level = <2900000 2900000>;
+	qcom,vdd-always-on;        
+	qcom,vdd-voltage-level = <2950000 2950000>;
 	qcom,vdd-current-level = <200 400000>;
 
 	vdd-io-supply = <&pm8916_l5>;
@@ -129,8 +130,10 @@
 	qcom,vdd-current-level = <15000 400000>;
 
 	vdd-io-supply = <&pm8916_l12>;
-	qcom,vdd-io-voltage-level = <1800000 2950000>;
+	/* change from <1800000 2950000> to <2950000 2950000>*/
+	qcom,vdd-io-voltage-level = <2950000 2950000>;
 	qcom,vdd-io-current-level = <200 50000>;
+	qcom,vdd-io-always-on;
 
 	pinctrl-names = "active", "sleep";
 	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;

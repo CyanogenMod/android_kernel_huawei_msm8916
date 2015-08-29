@@ -62,7 +62,9 @@
 
 #include <linux/blkdev.h>
 #include "../../scsi/sd.h"
-
+#ifdef CONFIG_HUAWEI_USB_DSM
+#include <linux/usb/dsm_usb.h>
+#endif
 
 /***********************************************************************
  * Data transfer routines
@@ -864,7 +866,10 @@ Retry_Sense:
 	 * by issuing a port reset.  If that fails, try a class-specific
 	 * device reset. */
   Handle_Errors:
-
+#ifdef CONFIG_HUAWEI_USB_DSM
+	DSM_USB_LOG(DSM_USB_HOST, NULL, DSM_USB_HOST_MS_TR_ERR,
+		"%s: usb host mass storage Error and abort processing\n", __FUNCTION__);
+#endif
 	/* Set the RESETTING bit, and clear the ABORTING bit so that
 	 * the reset may proceed. */
 	scsi_lock(us_to_host(us));

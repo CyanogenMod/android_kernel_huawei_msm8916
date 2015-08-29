@@ -3061,6 +3061,11 @@ int mdss_mdp_display_commit(struct mdss_mdp_ctl *ctl, void *arg,
 		}
 		ATRACE_END("mixer_programming");
 	}
+	
+	ATRACE_BEGIN("frame_ready");
+	if (!ctl->shared_lock)
+		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_READY);
+	ATRACE_END("frame_ready");
 
 	ctl->roi_bkup.w = ctl->roi.w;
 	ctl->roi_bkup.h = ctl->roi.h;

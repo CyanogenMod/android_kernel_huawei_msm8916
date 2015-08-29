@@ -1,0 +1,9 @@
+ / {
+        huawei_fac_info {
+                  compatible = "huawei,hw_fac_info";
+                  fac,product_name = "HUAWEI G620S-L02";
+                  fac,hardware_ver = "HL1G620SM";
+                  fac,software_ver = "MSM8916_G620S-L02_VA";
+                  status = "ok";
+        };
+};

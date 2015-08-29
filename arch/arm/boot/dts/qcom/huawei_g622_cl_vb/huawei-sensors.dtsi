@@ -1,0 +1,136 @@
+/*use fromdos convert file format to linux*/
+/* Copyright (c) 2013 The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+&tlmm_pinmux {
+
+	kx023_int1_pin {
+		qcom,pins = <&gp 115>;
+		qcom,num-grp-pins = <1>;
+		label = "kx023_int_pin";
+		kx023_int1_default: int1_default {
+			  drive-strength = <6>;
+			  bias-pull-dowm;
+		};
+		kx023_int1_sleep: int1_sleep {
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	ak8789_int_pin {
+		qcom,pins = <&gp 1>, <&gp 69>;
+		qcom,num-grp-pins = <2>;
+		qcom,pin-func = <0>;
+		label = "ak8789_int_pin";
+		ak8789_default: ak8789_default {
+			  drive-strength = <2>;
+			  bias-pull-up;
+		};
+	};
+	apds9930_int_pin {
+		qcom,pins = <&gp 113>;
+		qcom,pin-func = <0>;
+		qcom,num-grp-pins = <1>;
+		label = "apds9930-irq";
+		apds9930_default: apds9930_default {
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+		apds9930_sleep: apds9930_sleep {
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+};
+
+&i2c_0 { /* BLSP1 QUP2 */
+	akm@c {
+		compatible = "ak,ak09911";
+		reg = <0x0c>;
+		pinctrl-names = "default","sleep";
+		pinctrl-0 = <&akm_default>;
+		pinctrl-1 = <&akm_sleep>;
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
+		akm,layout = <0x3>;
+		akm,gpio_rstn = <&msm_gpio 36 0x0>;
+		akm,auto-report;
+	};
+
+	avago@39 {
+		compatible = "avago,apds9930";
+		reg = <0x39>;
+		pinctrl-names = "default","sleep";
+		pinctrl-0 = <&apds9930_default>;
+		pinctrl-1 = <&apds9930_sleep>;
+		interrupt-parent = <&msm_gpio>;
+		interrupts = <113 0x2>;
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
+		avago,irq-gpio = <&msm_gpio 113 0x2>;
+		avago,ps_threshold = <600>;
+		avago,ps_hysteresis_threshold = <500>;
+		avago,ps_pulse = <8>;
+		avago,ps_pgain = <0>;
+		avago,als_B = <2117>;
+		avago,als_C = <76>;
+		avago,als_D = <78>;
+		avago,ga_value = <48>;
+		avago,ga_a_value = <550>;
+		avago,ga_c_value = <570>;
+		avago,ga_d_value = <620>;
+		avago,window = <110>;
+		avago,wave = <70>;
+		avago,ga_e_value = <215>;
+		avago,ga_f_value = <50>;
+	};
+
+	st@18 {
+		compatible = "st,lis3dh";
+		reg = <0x18>;
+		pinctrl-names = "lis3dh_default","lis3dh_sleep";
+		pinctrl-0 = <&lis3dh_int1_default>;
+		pinctrl-1 = <&lis3dh_int1_sleep>;
+		interrupt-parent = <&msm_gpio>;
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l6>;
+		st,min-interval = <5>;
+		st,init-interval = <200>;
+		st,axis-map-x = <0>;
+		st,axis-map-y = <1>;
+		st,axis-map-z = <2>;
+		/*1 is bottom and others means top*/
+		st,axis-map-bottom=<0>;
+		st,g-range = <2>;
+		st,gpio-int1 = <&msm_gpio 115 0x2002>;
+		st,negate-x;
+		st,negate-y;
+	};
+	Rohm@1e {
+		compatible = "kionix,kx023";
+		reg = <0x1e>;
+		pinctrl-names = "kx023_default","kx023_sleep";
+		pinctrl-0 = <&kx023_int1_default>;
+		pinctrl-1 = <&kx023_int1_sleep>;
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l6>;
+		gs,int1_gpio = <&msm_gpio 115 0x2002>;
+		/*1 is bottom and others means top*/
+		gs,direct = <0>;
+		gs,min_interval = <5>;
+		gs,poll_interval = <200>;
+		gs,accel_direction = <1>;
+		gs,accel_irq_use_drdy = <0>;
+		gs,accel_g_range = <0>;
+		gs,accel_res = <0>;
+	};
+};

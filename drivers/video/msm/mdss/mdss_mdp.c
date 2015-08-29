@@ -56,6 +56,8 @@
 #include "mdss_panel.h"
 #include "mdss_debug.h"
 
+#include <linux/hw_lcd_common.h>
+
 #define CREATE_TRACE_POINTS
 #include "mdss_mdp_trace.h"
 
@@ -857,6 +859,10 @@ void mdss_mdp_clk_ctrl(int enable, int isr)
 				changed++;
 		} else {
 			pr_err("Can not be turned off\n");
+/* report mdp clk dsm error */
+#ifdef CONFIG_HUAWEI_LCD
+			lcd_report_dsm_err(DSM_LCD_MDSS_MDP_CLK_ERROR_NO,0,0);
+#endif
 		}
 	}
 
@@ -988,6 +994,10 @@ int mdss_iommu_attach(struct mdss_data_type *mdata)
 		rc = iommu_attach_device(domain, iomap->ctx);
 		if (rc) {
 			WARN(1, "mdp::iommu device attach failed rc:%d\n", rc);
+/* report IOMMU dsm error */
+#ifdef CONFIG_HUAWEI_LCD
+			lcd_report_dsm_err(DSM_LCD_MDSS_IOMMU_ERROR_NO,rc,0);
+#endif
 			for (i--; i >= 0; i--) {
 				iomap = mdata->iommu_map + i;
 				iommu_detach_device(domain, iomap->ctx);
@@ -1021,6 +1031,10 @@ int mdss_iommu_dettach(struct mdss_data_type *mdata)
 		if (!domain) {
 			pr_err("unable to get iommu domain(%d)\n",
 				iomap->domain_idx);
+/* report IOMMU dsm error */
+#ifdef CONFIG_HUAWEI_LCD
+			lcd_report_dsm_err(DSM_LCD_MDSS_IOMMU_ERROR_NO,iomap->domain_idx,0);
+#endif
 			continue;
 		}
 		iommu_detach_device(domain, iomap->ctx);

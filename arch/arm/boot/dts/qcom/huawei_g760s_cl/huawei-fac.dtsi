@@ -1,0 +1,9 @@
+ / {
+        huawei_fac_info {
+                  compatible = "huawei,hw_fac_info";
+                  fac,product_name = "HUAWEI C199s";
+                  fac,hardware_ver = "HL1G760M";
+                  fac,software_ver = "MSM8939_C199s_VA";
+                  status = "ok";
+        };
+};

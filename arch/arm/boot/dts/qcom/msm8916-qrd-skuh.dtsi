@@ -12,7 +12,7 @@
 
 #include "msm8916-qrd.dtsi"
 #include "dsi-panel-innolux-720p-video.dtsi"
-#include "msm8916-camera-sensor-qrd.dtsi"
+/*#include "msm8916-camera-sensor-qrd.dtsi"*/
 
 &tlmm_pinmux {
 	akm_reset_pin {
@@ -91,9 +91,6 @@
 	avago@39 {
 		compatible = "avago,apds9930";
 		reg = <0x39>;
-		pinctrl-names = "default","sleep";
-		pinctrl-0 = <&apds99xx_default>;
-		pinctrl-1 = <&apds99xx_sleep>;
 		interrupt-parent = <&msm_gpio>;
 		interrupts = <113 0x2002>;
 		vdd-supply = <&pm8916_l17>;
@@ -272,6 +269,17 @@
 			qcom,msm-codec-type = "internal";
 			qcom,msm-mbhc-hphl-swh = <1>;
 			qcom,msm-mbhc-gnd-swh = <0>;
+			qcom,msm-hs-micbias-type = "external";
+			qcom,audio-routing =
+				"RX_BIAS", "MCLK",
+				"SPK_RX_BIAS", "MCLK",
+				"INT_LDO_H", "MCLK",
+				"MIC BIAS External", "Handset Mic",
+				"MIC BIAS External2", "Headset Mic",
+				"MIC BIAS External", "Secondary Mic",
+				"AMIC1", "MIC BIAS External",
+				"AMIC2", "MIC BIAS External2",
+				"AMIC3", "MIC BIAS External";
 			pinctrl-names = "cdc_lines_act",
 					"cdc_lines_sus";
 			pinctrl-0 = <&cdc_pdm_lines_act>;
@@ -320,7 +328,7 @@
 
 &pm8916_vadc {
 	chan@30 {
-		qcom,scale-function = <10>;
+		qcom,scale-function = <11>;
 	};
 };
 
@@ -333,7 +341,7 @@
 &pm8916_chg {
 	qcom,vddmax-mv = <4350>;
 	qcom,vddsafe-mv = <4380>;
-	qcom,vinmin-mv = <4470>;
+	qcom,vinmin-mv = <4389>;
 	qcom,batt-hot-percentage = <35>;
 	qcom,batt-cold-percentage = <70>;
 	qcom,tchg-mins = <360>;
@@ -345,7 +353,7 @@
 		qcom,rpull-up-kohm = <68>;
 		qcom,vref-batt-therm = <1800000>;
 
-		#include "batterydata-qrd-skuh-4v35-2000mah.dtsi"
+		//#include "batterydata-qrd-skuh-4v35-2000mah.dtsi"
 	};
 };
 

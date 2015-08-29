@@ -1,0 +1,9 @@
+ / {
+        huawei_fac_info {
+                  compatible = "huawei,hw_fac_info";
+                  fac,product_name = "HUAWEI Y635-L21";
+                  fac,hardware_ver = "HL1Y635ULTM";
+                  fac,software_ver = "MSM8916_Y635-L21_VA";
+                  status = "ok";
+        };
+};

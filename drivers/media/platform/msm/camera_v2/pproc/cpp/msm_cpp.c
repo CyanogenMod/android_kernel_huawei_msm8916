@@ -43,6 +43,8 @@
 #include "msm_camera_io_util.h"
 #include <linux/debugfs.h>
 
+#include "msm_camera_dsm.h"
+
 #define MSM_CPP_DRV_NAME "msm_cpp"
 
 #define MSM_CPP_MAX_BUFF_QUEUE	16
@@ -1547,7 +1549,8 @@ static int msm_cpp_cfg(struct cpp_device *cpp_dev,
 			&buff_mgr_info);
 		if (rc < 0) {
 			rc = -EAGAIN;
-			pr_debug("error getting buffer rc:%d\n", rc);
+			CPP_DBG("error getting buffer rc:%d\n", rc);
+			/* delete some lines */
 			goto ERROR2;
 		}
 		new_frame->output_buffer_info[0].index = buff_mgr_info.index;
@@ -1580,7 +1583,7 @@ static int msm_cpp_cfg(struct cpp_device *cpp_dev,
 			&dup_buff_mgr_info);
 		if (rc < 0) {
 			rc = -EAGAIN;
-			pr_debug("error getting buffer rc:%d\n", rc);
+			CPP_DBG("error getting buffer rc:%d\n", rc);
 			goto ERROR3;
 		}
 		new_frame->output_buffer_info[1].index =
@@ -1659,6 +1662,7 @@ static int msm_cpp_cfg(struct cpp_device *cpp_dev,
 	if (rc) {
 		ERR_COPY_FROM_USER();
 		rc = -EINVAL;
+		pr_err("%s: error cannot copy_to_user\n",__func__);
 		goto ERROR4;
 	}
 	return rc;

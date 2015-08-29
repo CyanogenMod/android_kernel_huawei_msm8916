@@ -603,37 +603,36 @@ int nfcc_wake(int level, struct file *filp)
 		r = nfc_i2c_write(qca199x_dev->client, &raw_nci_wake[0],
 						sizeof(raw_nci_wake));
 		if (r != sizeof(raw_nci_wake)) {
-			r = -EMSGSIZE;
+		    r = -EMSGSIZE;
 			dev_err(&qca199x_dev->client->dev,
-				"%s: nci wake write failed. Check hardware\n",
+			    "%s: nci wake write failed. Check hardware\n",
 				__func__);
 			goto leave;
-		}
+		}	
 		do {
 			wake_status = WAKE_REG;
 			r = nfc_i2c_write(qca199x_dev->client, &wake_status,
-						 sizeof(wake_status));
+			             sizeof(wake_status));
 			if (r != sizeof(wake_status)) {
-				r = -EMSGSIZE;
+			    r = -EMSGSIZE;
 				dev_err(&qca199x_dev->client->dev,
 				"%s: wake status write fail.Check hardware\n",
 				 __func__);
-				goto leave;
-			}
+				 goto leave;
+			}	 
 			/*
-			 * I2C line is low after ~10 usec
+			 * I2C line is low after ~10 usec 
 			 */
 			usleep_range(10, 15);
 			r = i2c_master_recv(qca199x_dev->client, &wake_status,
 						sizeof(wake_status));
-			if (r != sizeof(wake_status)) {
-				r = -EMSGSIZE;
+            if (r != sizeof(wake_status)) {
+			    r = -EMSGSIZE;
 				dev_err(&qca199x_dev->client->dev,
 				"%s: wake status read fail.Check hardware\n",
-				 __func__);
+				__func__);
 				goto leave;
 			}
-
 			time_taken++;
 			/*
 			 * Each NFCC wakeup cycle
@@ -663,15 +662,15 @@ leave:
 /*
  * Inside nfc_ioctl_power_states
  *
- * @brief	ioctl functions
+ * @brief   ioctl functions
  *
  *
  * Device control
  * remove control via ioctl
- * (arg = 0): NFC_DISABLE	GPIO = 0
- * (arg = 1): NFC_DISABLE	GPIO = 1
- *	NOT USED   (arg = 2): FW_DL GPIO = 0
- *	NOT USED   (arg = 3): FW_DL GPIO = 1
+ * (arg = 0): NFC_DISABLE   GPIO = 0
+ * (arg = 1): NFC_DISABLE   GPIO = 1
+ *  NOT USED   (arg = 2): FW_DL GPIO = 0
+ *  NOT USED   (arg = 3): FW_DL GPIO = 1
  * (arg = 4): NFCC_WAKE  = 1
  * (arg = 5): NFCC_WAKE  = 0
  *
@@ -1069,6 +1068,15 @@ static int nfcc_initialise(struct i2c_client *client, unsigned short curr_addr,
 	unsigned char raw_slave1_rd		= {0x0};
 	unsigned char raw_1P8_PAD_CFG_CLK_REQ[]	= {0xA5, 0x1};
 	unsigned char raw_1P8_PAD_CFG_PWR_REQ[]	= {0xA7, 0x1};
+
+	/* RMA3506250 SW PIN CFG */
+	unsigned char raw_1P8_PAD_CFG_DCLB_WI1_0X45[]	= {0x45, 0x83};
+	unsigned char raw_1P8_PAD_CFG_SPI_CLK_0X47[]	= {0x47, 0x83};
+	unsigned char raw_1P8_PAD_CFG_SPI_SI_0X48[]	= {0x48, 0x83};
+	unsigned char raw_1P8_PAD_CFG_SPI_SO_0X49[]	= {0x49, 0x83};
+	unsigned char raw_1P8_PAD_CFG_SPI_CNS_0X4A[]	= {0x4A, 0x83};
+	/* RMA3506250 SW PIN CFG */
+
 	unsigned char buf = 0;
 	bool core_reset_completed = false;
 	unsigned char rsp[6];
@@ -1163,6 +1171,50 @@ static int nfcc_initialise(struct i2c_client *client, unsigned short curr_addr,
 		goto err_init;
 
 	usleep_range(1000, 1100); /* 1 ms wait */
+
+
+	/* RMA3506250 SW PIN CFG */
+	RAW(1P8_PAD_CFG_DCLB_WI1_0X45, (0x83));
+	r = nfc_i2c_write(client, &raw_1P8_PAD_CFG_DCLB_WI1_0X45[0],
+				  sizeof(raw_1P8_PAD_CFG_DCLB_WI1_0X45));
+	if (r < 0)
+		goto err_init;
+
+	usleep(1000);
+
+	RAW(1P8_PAD_CFG_SPI_CLK_0X47, (0x83));
+	r = nfc_i2c_write(client, &raw_1P8_PAD_CFG_SPI_CLK_0X47[0],
+				  sizeof(raw_1P8_PAD_CFG_SPI_CLK_0X47));
+	if (r < 0)
+		goto err_init;
+
+	usleep(1000);
+
+	RAW(1P8_PAD_CFG_SPI_SI_0X48, (0x83));
+	r = nfc_i2c_write(client, &raw_1P8_PAD_CFG_SPI_SI_0X48[0],
+				  sizeof(raw_1P8_PAD_CFG_SPI_SI_0X48));
+	if (r < 0)
+		goto err_init;
+
+	usleep(1000);
+
+	RAW(1P8_PAD_CFG_SPI_SO_0X49, (0x83));
+	r = nfc_i2c_write(client, &raw_1P8_PAD_CFG_SPI_SO_0X49[0],
+				  sizeof(raw_1P8_PAD_CFG_SPI_SO_0X49));
+	if (r < 0)
+		goto err_init;
+
+	usleep(1000);
+
+	RAW(1P8_PAD_CFG_SPI_CNS_0X4A, (0x83));
+	r = nfc_i2c_write(client, &raw_1P8_PAD_CFG_SPI_CNS_0X4A[0],
+				  sizeof(raw_1P8_PAD_CFG_SPI_CNS_0X4A));
+	if (r < 0)
+		goto err_init;
+
+	usleep(1000);
+	/* RMA3506250 SW PIN CFG */
+
 
 	RAW(slave2, 0x10);
 	r = nfc_i2c_write(client, &raw_slave2[0], sizeof(raw_slave2));
@@ -1612,14 +1664,14 @@ static int qca199x_probe(struct i2c_client *client,
 		if (r) {
 			dev_err(&client->dev,
 			"%s: request_irq failed. irq no = %d\n, main irq = %d",
-				__func__,
+			    __func__,
 				qca199x_dev->clk_req_irq_num, client->irq);
 			goto err_request_irq_failed;
 		}
 		qca199x_dev->irq_enabled_clk_req = true;
 		qca199x_disable_irq_clk_req(qca199x_dev);
-
-
+        
+		
 		qca199x_dev->my_wq =
 			create_singlethread_workqueue("qca1990x_CLK_REQ_queue");
 		if (!qca199x_dev->my_wq)

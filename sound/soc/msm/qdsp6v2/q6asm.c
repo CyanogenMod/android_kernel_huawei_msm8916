@@ -39,6 +39,8 @@
 #include <sound/q6asm-v2.h>
 #include <sound/q6audio-v2.h>
 
+#include <sound/hw_audio_info.h>
+
 #include "audio_acdb.h"
 
 #define TRUE        0x01
@@ -476,6 +478,7 @@ int send_asm_custom_topology(struct audio_client *ac)
 	}
 	return result;
 err_unmap:
+	audio_dsm_report_num(DSM_AUDIO_ADSP_SETUP_FAIL_ERROR_NO, DSM_AUDIO_MESG_Q6ASM_FALL);
 	q6asm_memory_unmap_regions(&common_client, IN);
 err_map:
 	q6asm_mmap_apr_dereg();
@@ -1359,6 +1362,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			if (payload[1] != 0) {
 				pr_err("%s: cmd = 0x%x returned error = 0x%x\n",
 					__func__, payload[0], payload[1]);
+				audio_dsm_report_num(DSM_AUDIO_ADSP_SETUP_FAIL_ERROR_NO, DSM_AUDIO_MESG_DSP_CMD_ERROR);
 				if (wakeup_flag) {
 					atomic_set(&ac->cmd_state, -payload[1]);
 					wake_up(&ac->cmd_wait);

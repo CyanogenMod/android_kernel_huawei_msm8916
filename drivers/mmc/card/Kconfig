@@ -86,4 +86,53 @@ config MMC_BLOCK_TEST
 	  device.
 	  Currently used to test eMMC 4.5 features (packed commands, sanitize,
 	  BKOPs).
+	  
+config HW_MMC_TEST
+	bool "MMC host test driver by Huawei"
+	depends on  HUAWEI_KERNEL
+	default n
+	help
+	  it's used as a pre-compile macro for mmc test driver by huawei.
+	  
+config HW_MMC_TEST_MODULE
+	tristate "MMC host test driver by Huawei"
+	depends on HW_MMC_TEST && HUAWEI_KERNEL
+	default n
+	help
+	  Development driver that performs a series of reads and writes
+	  to a memory card in order to expose certain well known bugs
+	  in host controllers. The tests are executed by writing to the
+	  "test" file in debugfs under each card. Note that whatever is
+	  on your card will be overwritten by these tests.
 
+	  This driver is only of interest to those developing or
+	  testing a host driver. Most people should say N here.
+
+config HW_MMC_AGING_TEST
+	bool "MMC aging test driver by Huawei"
+	depends on  HUAWEI_KERNEL
+	default m
+	help
+	  it's used as a pre-compile macro for mmc aging test feature by huawei.
+
+config HW_MMC_AGING_TEST_MODULE
+	tristate "MMC host aging test driver by Huawei"
+	depends on HUAWEI_KERNEL && HW_MMC_AGING_TEST
+	default m
+	help
+	  Development driver that performs a series of reads and writes
+	  to a memory card in order to expose certain well known bugs
+
+	  This driver is only of interest to those developing or
+	  testing a host driver. Most people should say N here.
+
+config MMC_FFU
+	bool "FFU SUPPORT"
+	depends on MMC != n
+	default n
+	help
+	  This is an option to run firmware update on eMMC 5.0.
+	  Field firmware updates (FFU) enables features enhancment
+	  in the field.
+	  
+	  

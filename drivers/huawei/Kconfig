@@ -1,0 +1,4 @@
+menu "huawei linux device driver support package"
+source "drivers/huawei/log_module/Kconfig"
+source "drivers/huawei/store_exception/Kconfig"
+endmenu

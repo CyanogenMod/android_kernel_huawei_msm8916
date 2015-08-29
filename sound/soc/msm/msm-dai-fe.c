@@ -714,6 +714,36 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		.probe = fe_dai_probe,
 	},
 	{
+		.capture = {
+			.stream_name = "Quaternary MI2S_TX Hostless Capture",
+			.aif_name = "QUAT_MI2S_UL_HL",
+			.rates = SNDRV_PCM_RATE_8000_48000,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+			.channels_min = 1,
+			.channels_max = 2,
+			.rate_min = 8000,
+			.rate_max = 48000,
+		},
+		.ops = &msm_fe_dai_ops,
+		.name = "QUAT_MI2S_TX_HOSTLESS",
+		.probe = fe_dai_probe,
+	},
+	{
+		.playback = {
+			.stream_name = "Quaternary MI2S_RX Hostless Playback",
+			.aif_name = "QUAT_MI2S_DL_HL",
+			.rates = SNDRV_PCM_RATE_8000_48000,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+			.channels_min = 1,
+			.channels_max = 2,
+			.rate_min = 8000,
+			.rate_max =    48000,
+		},
+		.ops = &msm_fe_dai_ops,
+		.name = "QUAT_MI2S_RX_HOSTLESS",
+		.probe = fe_dai_probe,
+	},
+	{
 		.playback = {
 			.stream_name = "Voice2 Playback",
 			.aif_name = "VOICE2_DL",
@@ -1030,7 +1060,6 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 
 static int msm_fe_dai_dev_probe(struct platform_device *pdev)
 {
-
 	dev_dbg(&pdev->dev, "%s: dev name %s\n", __func__,
 		dev_name(&pdev->dev));
 	return snd_soc_register_component(&pdev->dev, &msm_fe_dai_component,

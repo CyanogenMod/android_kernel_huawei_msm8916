@@ -204,6 +204,16 @@ config BATTERY_MAX17042
 	  with MAX17042. This driver also supports max17047/50 chips which are
 	  improved version of max17042.
 
+config BATTERY_MAX17048
+    tristate "Maxim MAX17048/77819 Fuel Gauge"
+    depends on I2C
+    help
+      MAX17048 is fuel-gauge systems for lithium-ion (Li+) batteries
+      in handheld and portable equipment. The MAX17048 is configured
+      to operate with a single lithium cell. MAX8997 and MAX8966 are
+      multi-function devices that include fuel gauages that are compatible
+      with MAX17048.
+
 config BATTERY_ANDROID
 	tristate "Battery driver for Android"
 	help
@@ -332,6 +342,12 @@ config CHARGER_MAX8998
 	help
 	  Say Y to enable support for the battery charger control sysfs and
 	  platform data of MAX8998/LP3974 PMICs.
+
+config CHARGER_MAX77819
+    tristate "Maxim MAX77819 PMIC battery charger driver"
+    depends on MFD_MAX77819
+    help
+      Say Y to enable support for the MAX77819 PMIC battery charger.
 
 config CHARGER_BQ2415X
 	tristate "TI BQ2415x battery charger driver"
@@ -516,6 +532,19 @@ config QPNP_LINEAR_CHARGER
 	  detection and charging. The driver also offers relevant information
 	  to userspace via the power supply framework.
 
+
+config BATTERY_BQ27510
+	tristate "Power supply class support"
+	depends on I2C
+	depends on HUAWEI_KERNEL
+
+config CHARGER_BQ24152
+	tristate "Power supply class support"
+	depends on I2C
+	depends on HUAWEI_KERNEL
+
+config HUAWEI_HLTHERM_CHARGING
+	bool "High and low tem charging"
 source "drivers/power/reset/Kconfig"
 
 endif # POWER_SUPPLY

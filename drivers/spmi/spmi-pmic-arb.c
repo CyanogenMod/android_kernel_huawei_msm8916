@@ -9,7 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
 #define pr_fmt(fmt) "#%d: " fmt, __LINE__
 
 #include <linux/delay.h>
@@ -38,18 +37,24 @@ enum {
 	PMIC_ARB_GENI_CTRL,
 	PMIC_ARB_GENI_STATUS,
 	PMIC_ARB_PROTOCOL_IRQ_STATUS,
+	PMIC_ARB_CFG_REG,
+	PMIC_ARB_HW_VERSION,
 };
 
 u32 pmic_arb_regs_v1[] = {
 	[PMIC_ARB_GENI_CTRL]	= 0x0024,
 	[PMIC_ARB_GENI_STATUS]	= 0x0028,
 	[PMIC_ARB_PROTOCOL_IRQ_STATUS] = (0x700 + 0x820),
+	[PMIC_ARB_CFG_REG]	       = (0xF04),
+	[PMIC_ARB_HW_VERSION]	       = (0xF0C),
 };
 
 u32 pmic_arb_regs_v2[] = {
 	[PMIC_ARB_GENI_CTRL]	= 0x0028,
 	[PMIC_ARB_GENI_STATUS]	= 0x002C,
 	[PMIC_ARB_PROTOCOL_IRQ_STATUS] = (0x700 + 0x900),
+	[PMIC_ARB_CFG_REG]	       = (0xF04),
+	[PMIC_ARB_HW_VERSION]	       = (0xF0C),
 };
 
 /* Offset per chnnel-register type */
@@ -427,6 +432,10 @@ static void pmic_arb_dbg_err_dump(struct spmi_pmic_arb_dev *pmic_arb, int ret,
 				pmic_arb->ver->regs[PMIC_ARB_GENI_STATUS]);
 	u32 geni_ctrl = readl_relaxed(pmic_arb->cnfg +
 				pmic_arb->ver->regs[PMIC_ARB_GENI_CTRL]);
+	u32 spmi_cfg = readl_relaxed(pmic_arb->cnfg +
+				pmic_arb->ver->regs[PMIC_ARB_CFG_REG]);
+	u32 spmi_hw_ver = readl_relaxed(pmic_arb->cnfg +
+				pmic_arb->ver->regs[PMIC_ARB_HW_VERSION]);
 
 	bc += 1; /* actual byte count */
 
@@ -440,8 +449,8 @@ static void pmic_arb_dbg_err_dump(struct spmi_pmic_arb_dev *pmic_arb, int ret,
 			ret, opc, sid);
 
 	dev_err(pmic_arb->dev,
-		"PROTOCOL_IRQ_STATUS before:0x%x after:0x%x GENI_STATUS:0x%x GENI_CTRL:0x%x\n",
-		irq_stat, pmic_arb->prev_prtcl_irq_stat, geni_stat, geni_ctrl);
+		"PROTOCOL_IRQ_STATUS before:0x%x after:0x%x GENI_STATUS:0x%x GENI_CTRL:0x%x\n SPMI_CFG_REG:0x%x\n SPMI_HW_VER:0x%x\n",
+		irq_stat, pmic_arb->prev_prtcl_irq_stat, geni_stat, geni_ctrl, spmi_cfg, spmi_hw_ver);
 }
 
 static int
@@ -1227,7 +1236,6 @@ static struct platform_driver spmi_pmic_arb_driver = {
 		.of_match_table = spmi_pmic_arb_match_table,
 	},
 };
-
 static int __init spmi_pmic_arb_init(void)
 {
 	return platform_driver_register(&spmi_pmic_arb_driver);

@@ -251,4 +251,9 @@ config MSM_BT_POWER
 	  Provides a parameter to switch on/off power from PMIC
 	  to Bluetooth device.
 
+config HUAWEI_FM
+	tristate "FM searching params shell debug driver"
+	depends on HUAWEI_KERNEL
+	help
+	  use huawei feature
 endmenu

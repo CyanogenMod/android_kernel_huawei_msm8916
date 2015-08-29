@@ -8,6 +8,8 @@ ccflags-y += -Idrivers/media/platform/msm/camera_v2/camera
 ccflags-y += -Idrivers/media/platform/msm/camera_v2/jpeg_10
 
 obj-$(CONFIG_MSMB_CAMERA) += msm.o
+obj-$(CONFIG_MSMB_CAMERA) += hw_camera_common.o
+obj-$(CONFIG_HUAWEI_DSM) += msm_camera_dsm.o
 obj-$(CONFIG_MSMB_CAMERA) += camera/
 obj-$(CONFIG_MSMB_CAMERA) += msm_vb2/
 obj-$(CONFIG_MSMB_CAMERA) += sensor/
@@ -16,3 +18,5 @@ obj-$(CONFIG_MSMB_CAMERA) += isp/
 obj-$(CONFIG_MSMB_CAMERA) += ispif/
 obj-$(CONFIG_MSMB_JPEG) += jpeg_10/
 obj-$(CONFIG_MSMB_CAMERA) += msm_buf_mgr/
+obj-$(CONFIG_MSMB_CAMERA) += hw_camera_log.o
+

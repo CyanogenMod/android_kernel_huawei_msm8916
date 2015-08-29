@@ -1,0 +1,9 @@
+ / {
+        huawei_fac_info {
+                  compatible = "huawei,hw_fac_info";
+                  fac,product_name = "G620S-UL";
+                  fac,hardware_ver = "HL0MSM8916MT0";
+                  fac,software_ver = "MSM8916_G620S-UL_VC";
+                  status = "ok";
+        };
+};

@@ -23,6 +23,15 @@
 #include <linux/input.h>
 #include <linux/log2.h>
 #include <linux/qpnp/power-on.h>
+#include <linux/time.h>
+#ifdef  CONFIG_HUAWEI_KERNEL
+#include <soc/qcom/smsm.h>
+#endif
+#ifdef CONFIG_HUAWEI_KERNEL
+#include <linux/dsm_pub.h>
+#include <linux/hw_lcd_common.h>
+#endif
+
 
 #define PMIC_VER_8941           0x01
 #define PMIC_VERSION_REG        0x0105
@@ -45,6 +54,9 @@
 #define QPNP_PON_WARM_RESET_REASON1(base)	(base + 0xA)
 #define QPNP_PON_WARM_RESET_REASON2(base)	(base + 0xB)
 #define QPNP_POFF_REASON1(base)			(base + 0xC)
+#ifdef CONFIG_HUAWEI_KERNEL
+#define QPNP_POFF_REASON2(base)	(base + 0xD)
+#endif
 #define QPNP_PON_KPDPWR_S1_TIMER(base)		(base + 0x40)
 #define QPNP_PON_KPDPWR_S2_TIMER(base)		(base + 0x41)
 #define QPNP_PON_KPDPWR_S2_CNTL(base)		(base + 0x42)
@@ -64,6 +76,7 @@
 #define QPNP_PON_S3_SRC(base)			(base + 0x74)
 #define QPNP_PON_S3_DBC_CTL(base)		(base + 0x75)
 #define QPNP_PON_TRIGGER_EN(base)		(base + 0x80)
+
 
 #define QPNP_PON_WARM_RESET_TFT			BIT(4)
 
@@ -109,6 +122,10 @@
 
 #define QPNP_PON_BUFFER_SIZE			9
 
+#ifdef  CONFIG_HUAWEI_KERNEL
+#define PON_DIS_PWRKPD_RESET 1
+#endif
+/* delete some lines */
 enum pon_type {
 	PON_KPDPWR,
 	PON_RESIN,
@@ -139,10 +156,13 @@ struct qpnp_pon {
 	int num_pon_config;
 	u16 base;
 	struct delayed_work bark_work;
+/* delete dsm_pmu_work*/
 	u32 dbc;
 };
 
 static struct qpnp_pon *sys_reset_dev;
+
+bool power_key_ps = false;
 
 static u32 s1_delay[PON_S1_COUNT_MAX + 1] = {
 	0 , 32, 56, 80, 138, 184, 272, 408, 608, 904, 1352, 2048,
@@ -186,7 +206,25 @@ static const char * const qpnp_poff_reason[] = {
  * boot of the device.
  */
 static int warm_boot;
+/* remove APR web LCD report log information  */
+#ifdef CONFIG_HUAWEI_DSM
+struct lcd_pwr_status_t lcd_pwr_status;
+#endif
 module_param(warm_boot, int, 0);
+
+#ifdef  CONFIG_HUAWEI_KERNEL
+static int hw_get_pwrkpd_flag(void)
+{
+	smem_exten_huawei_paramater *smem = NULL;
+
+	smem = smem_alloc(SMEM_ID_VENDOR1, sizeof(smem_exten_huawei_paramater),0,SMEM_ANY_HOST_FLAG);
+	if(NULL != smem)
+	{
+		return smem->pwrkpd_reset;
+	}
+	return -1;
+}
+#endif
 
 static int
 qpnp_pon_masked_write(struct qpnp_pon *pon, u16 addr, u8 mask, u8 val)
@@ -340,6 +378,8 @@ int qpnp_pon_system_pwr_off(enum pon_power_off_type type)
 	return rc;
 }
 EXPORT_SYMBOL(qpnp_pon_system_pwr_off);
+
+
 
 /**
  * qpnp_pon_is_warm_reset - Checks if the PMIC went through a warm reset.
@@ -498,8 +538,14 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_HUAWEI_KERNEL
+	pr_err("PMIC input: code=%d, sts=0x%hhx\n",
+					cfg->key_code, pon_rt_sts);
+#else
 	pr_debug("PMIC input: code=%d, sts=0x%hhx\n",
 					cfg->key_code, pon_rt_sts);
+#endif
+
 	key_status = pon_rt_sts & pon_rt_bit;
 
 	/* simulate press event in case release event occured
@@ -513,6 +559,42 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	input_report_key(pon->pon_input, cfg->key_code, key_status);
 	input_sync(pon->pon_input);
 
+	//remove to  following row
+#ifdef CONFIG_HUAWEI_DSM
+	if(cfg->key_code == DSM_POWER_KEY_VAL && key_status){
+		dsm_key_pressed(DSM_POW_KEY);
+	}else if(cfg->key_code == DSM_VOL_DOWN_KEY_VAL && key_status){
+		dsm_key_pressed(DSM_VOL_DOWN_KEY);
+	}
+#endif
+
+#define POWERKEY_KEYCODE 116
+#define KEY_DOWN_S 1
+#define KEY_UP_S 0
+/* remove APR web LCD report log information  */
+#ifdef CONFIG_HUAWEI_DSM
+	if(cfg->key_code == POWERKEY_KEYCODE && key_status == KEY_DOWN_S)
+	{
+		power_key_ps = true;
+	}
+
+	/*when device wake up,we enable the timer,3 senconds later report the lcd power status if work abnormally*/
+	if(cfg->key_code == POWERKEY_KEYCODE && key_status == KEY_DOWN_S && lcd_pwr_status.panel_power_on== 0)       
+	{
+		del_timer(&lcd_pwr_status.lcd_dsm_t);
+		lcd_pwr_status.lcd_dsm_t.function = lcd_dcm_pwr_status_handler;
+  		lcd_pwr_status.lcd_dsm_t.data = 0;
+  		lcd_pwr_status.lcd_dsm_t.expires = jiffies + 3*HZ;
+		lcd_pwr_status.lcd_dcm_pwr_status = 0;
+		add_timer(&lcd_pwr_status.lcd_dsm_t);
+	}
+	/*(lcd_dcm_pwr_status & 0x000f) >> 3 == 1 means lcd  power on*/
+	/*when device suspend,del the timer*/
+	else if((cfg->key_code == POWERKEY_KEYCODE) && (key_status == KEY_DOWN_S) && (lcd_pwr_status.panel_power_on== 1) )
+	{
+		del_timer(&lcd_pwr_status.lcd_dsm_t);
+	}
+#endif
 	cfg->old_state = !!key_status;
 
 	return 0;
@@ -522,16 +604,42 @@ static irqreturn_t qpnp_kpdpwr_irq(int irq, void *_pon)
 {
 	int rc;
 	struct qpnp_pon *pon = _pon;
+#ifdef CONFIG_HUAWEI_KERNEL
+	struct timeval tv_pwr;
+	struct tm tm_pwr;
+#endif
 
 	rc = qpnp_pon_input_dispatch(pon, PON_KPDPWR);
 	if (rc)
 		dev_err(&pon->spmi->dev, "Unable to send input event\n");
-
+#ifdef CONFIG_HUAWEI_KERNEL
+	do_gettimeofday(&tv_pwr);
+	time_to_tm(tv_pwr.tv_sec, 0, &tm_pwr);
+	pr_info("Exit %s : [%ld-%d-%d]%d:%d:%d:%ld\n",__func__,tm_pwr.tm_year + 1900,tm_pwr.tm_mon+1,
+						tm_pwr.tm_mday,tm_pwr.tm_hour,tm_pwr.tm_min,tm_pwr.tm_sec,tv_pwr.tv_usec%1000);
+#endif
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_MSM_DLOAD_MODE
+#ifdef CONFIG_HUAWEI_KERNEL
+extern void clear_dload_mode(void);
+#endif
+#endif
+
 static irqreturn_t qpnp_kpdpwr_bark_irq(int irq, void *_pon)
 {
+#ifdef CONFIG_MSM_DLOAD_MODE
+#ifdef CONFIG_HUAWEI_KERNEL
+    /* clear dload mode to reduce false triggering dump*/
+    clear_dload_mode();
+#endif
+#endif
+
+#ifdef CONFIG_HUAWEI_KERNEL
+    /*print message to inform developer this is triggered by long press power key */
+    printk(KERN_ERR "long press power key have detected!\n");
+#endif
 	return IRQ_HANDLED;
 }
 
@@ -644,6 +752,7 @@ static void bark_work_func(struct work_struct *work)
 
 	if (!(pon_rt_sts & QPNP_PON_RESIN_BARK_N_SET)) {
 		/* report the key event and enable the bark IRQ */
+		pr_err("bark_work_func PMIC input: code=%d, value=%d\n", cfg->key_code, 0);
 		input_report_key(pon->pon_input, cfg->key_code, 0);
 		input_sync(pon->pon_input);
 		enable_irq(cfg->bark_irq);
@@ -688,6 +797,7 @@ static irqreturn_t qpnp_resin_bark_irq(int irq, void *_pon)
 	}
 
 	/* report the key event */
+	pr_err("qpnp_resin_bark_irq PMIC input: code=%d, value=%d\n",cfg->key_code, 1);
 	input_report_key(pon->pon_input, cfg->key_code, 1);
 	input_sync(pon->pon_input);
 	/* schedule work to check the bark status for key-release */
@@ -925,6 +1035,10 @@ static int qpnp_pon_config_init(struct qpnp_pon *pon)
 	u8 pmic_type;
 	u8 revid_rev4;
 
+#ifdef  CONFIG_HUAWEI_KERNEL
+	int pwrkpd_flag = 0;
+#endif
+
 	/* Check if it is rev B */
 	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
 			QPNP_PON_REVISION2(pon->base), &pon_ver, 1);
@@ -958,6 +1072,15 @@ static int qpnp_pon_config_init(struct qpnp_pon *pon)
 
 			rc = of_property_read_u32(pp, "qcom,support-reset",
 							&cfg->support_reset);
+#ifdef  CONFIG_HUAWEI_KERNEL
+			pwrkpd_flag = hw_get_pwrkpd_flag();
+            /*if disable pwrkpd flag is true, disable pwrkpd reset function*/
+			if (PON_DIS_PWRKPD_RESET == pwrkpd_flag)
+			{
+				cfg->support_reset = 0;
+			}
+#endif
+			
 			if (rc && rc != -EINVAL) {
 				dev_err(&pon->spmi->dev,
 					"Unable to read 'support-reset'\n");
@@ -1002,6 +1125,15 @@ static int qpnp_pon_config_init(struct qpnp_pon *pon)
 
 			rc = of_property_read_u32(pp, "qcom,support-reset",
 							&cfg->support_reset);
+			
+#ifdef  CONFIG_HUAWEI_KERNEL
+			pwrkpd_flag = hw_get_pwrkpd_flag();
+			if (1 == pwrkpd_flag)
+			{
+				cfg->support_reset = 0;
+			}
+#endif
+			
 			if (rc && rc != -EINVAL) {
 				dev_err(&pon->spmi->dev,
 					"Unable to read 'support-reset'\n");
@@ -1075,6 +1207,15 @@ static int qpnp_pon_config_init(struct qpnp_pon *pon)
 		case PON_KPDPWR_RESIN:
 			rc = of_property_read_u32(pp, "qcom,support-reset",
 							&cfg->support_reset);
+
+#ifdef  CONFIG_HUAWEI_KERNEL
+			pwrkpd_flag = hw_get_pwrkpd_flag();
+			if (1 == pwrkpd_flag)
+			{
+				cfg->support_reset = 0;
+			}
+#endif
+			
 			if (rc && rc != -EINVAL) {
 				dev_err(&pon->spmi->dev,
 					"Unable to read 'support-reset'\n");
@@ -1248,6 +1389,61 @@ free_input_dev:
 		input_free_device(pon->pon_input);
 	return rc;
 }
+#ifdef CONFIG_HUAWEI_KERNEL
+#define REASON_MAX		16
+
+static const char * const qpnp_pon_warm_reset_reason[] = {
+	[0] = "Triggered by Software",
+	[1] = "Triggered by PS_HOLD",
+	[2] = "Triggered by PMIC Watchdog",
+	[3] = "Triggered by Keypad_Reset1",
+	[4] = "Triggered by Keypad_Reset2",
+	[5] = "Triggered by simultaneous KPDPWR_N + RESIN_N",
+	[6] = "Triggered by RESIN_N",
+	[7] = "Triggered by KPDPWR_N",
+	[8] = "Unknow",
+	[9] = "Unknow",
+	[10] = "Unknow",
+	[11] = "Unknow",
+	[12] = "Triggered AFP",
+	[13] = "Unknow",
+	[14] = "Unknow",
+	[15] = "Unknow",
+};
+static void hw_dump_warm_reset_reason(void)
+{
+	u16 pon_warm_reset_reason = 0;  //0x80A,0x80B
+	struct qpnp_pon *pon = sys_reset_dev;
+	int rc;
+	int index;
+
+	if (!pon)
+		return;
+
+	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+				QPNP_PON_WARM_RESET_REASON1(pon->base), (u8 *)&pon_warm_reset_reason, 2);
+	if (rc) {
+		pr_err("Unable to read WARM_RESET_RESASON reg\n");
+		return;
+	}
+
+	index = ffs(pon_warm_reset_reason);
+	if ((index > REASON_MAX) || (index < 0))
+		index = 0;
+
+	dev_info(&pon->spmi->dev,"PMIC@SID%d:Warm-reset reason: %s and reg: 0x%x \n",
+		 pon->spmi->sid, index?qpnp_pon_warm_reset_reason[index - 1]:
+		"Unknown", pon_warm_reset_reason);
+
+	return;
+}
+#endif
+
+/* delete monitor_power_on_off_reason*/
+/* delete monitor_pa_cpu_temperature*/
+/* delete qpnp_read_ldo_status_reg*/
+/* delete monitor_ldo_voltage*/
+/* detele dsm_pmu_work_func*/
 
 static int qpnp_pon_probe(struct spmi_device *spmi)
 {
@@ -1260,6 +1456,10 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 	u16 poff_sts = 0;
 	const char *s3_src;
 	u8 s3_src_reg;
+
+#ifdef  CONFIG_HUAWEI_KERNEL
+	int pwrkpd_flag = 0;
+#endif
 
 	pon = devm_kzalloc(&spmi->dev, sizeof(struct qpnp_pon),
 							GFP_KERNEL);
@@ -1314,14 +1514,24 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 	cold_boot = !qpnp_pon_is_warm_reset();
 	if (index >= ARRAY_SIZE(qpnp_pon_reason) || index < 0)
 		dev_info(&pon->spmi->dev,
+#ifdef CONFIG_HUAWEI_KERNEL
+			"PMIC@SID%d Power-on reason: Unknown and '%s' boot, reg:0x%x\n",
+			pon->spmi->sid, cold_boot ? "cold" : "warm", pon_sts);
+#else
 			"PMIC@SID%d Power-on reason: Unknown and '%s' boot\n",
 			pon->spmi->sid, cold_boot ? "cold" : "warm");
+#endif
 	else
 		dev_info(&pon->spmi->dev,
+#ifdef CONFIG_HUAWEI_KERNEL
+			"PMIC@SID%d Power-on reason: %s and '%s' boot, reg:0x%x\n",
+			pon->spmi->sid, qpnp_pon_reason[index],
+			cold_boot ? "cold" : "warm", pon_sts);
+#else
 			"PMIC@SID%d Power-on reason: %s and '%s' boot\n",
 			pon->spmi->sid, qpnp_pon_reason[index],
 			cold_boot ? "cold" : "warm");
-
+#endif
 	/* POFF reason */
 	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
 				QPNP_POFF_REASON1(pon->base),
@@ -1334,17 +1544,42 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 	index = ffs(poff_sts) - 1;
 	if (index >= ARRAY_SIZE(qpnp_poff_reason) || index < 0)
 		dev_info(&pon->spmi->dev,
+#ifdef CONFIG_HUAWEI_KERNEL
+				"PMIC@SID%d: Unknown power-off reason, reg:0x%x\n",
+				pon->spmi->sid, poff_sts);
+#else
 				"PMIC@SID%d: Unknown power-off reason\n",
 				pon->spmi->sid);
+#endif
 	else
 		dev_info(&pon->spmi->dev,
+#ifdef CONFIG_HUAWEI_KERNEL
+				"PMIC@SID%d: Power-off reason: %s, reg:0x%x\n",
+				pon->spmi->sid,
+				qpnp_poff_reason[index], poff_sts);
+#else
 				"PMIC@SID%d: Power-off reason: %s\n",
 				pon->spmi->sid,
 				qpnp_poff_reason[index]);
+#endif
+
+#ifdef CONFIG_HUAWEI_KERNEL
+	hw_dump_warm_reset_reason();
+#endif
 
 	/* program s3 debounce */
 	rc = of_property_read_u32(pon->spmi->dev.of_node,
 				"qcom,s3-debounce", &s3_debounce);
+
+#ifdef  CONFIG_HUAWEI_KERNEL
+    /*if disable pwrkpd flag is true, set s3 timer to 128s*/
+	pwrkpd_flag = hw_get_pwrkpd_flag();
+	if (1 == pwrkpd_flag)
+	{
+		s3_debounce = QPNP_PON_S3_TIMER_SECS_MAX;
+	}
+#endif
+
 	if (rc) {
 		if (rc != -EINVAL) {
 			dev_err(&pon->spmi->dev, "Unable to read s3 timer\n");
@@ -1386,6 +1621,15 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 	else /* default combination */
 		s3_src_reg = QPNP_PON_S3_SRC_KPDPWR_AND_RESIN;
 
+#ifdef  CONFIG_HUAWEI_KERNEL
+    /*set s3 timer trigger source to pwrkpd if pwrkpd reset flag is true*/
+	pwrkpd_flag = hw_get_pwrkpd_flag();
+	if (1 == pwrkpd_flag)
+	{
+	    s3_src_reg = QPNP_PON_S3_SRC_KPDPWR_AND_RESIN;
+	}
+#endif
+
 	/* S3 source is a write once register. If the register has
 	 * been configured by bootloader then this operation will
 	 * not be effective. */
@@ -1400,7 +1644,10 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 	dev_set_drvdata(&spmi->dev, pon);
 
 	INIT_DELAYED_WORK(&pon->bark_work, bark_work_func);
-
+/* delete some lines */
+#ifdef CONFIG_HUAWEI_KERNEL
+	init_timer(&lcd_pwr_status.lcd_dsm_t);
+#endif
 	/* register the PON configurations */
 	rc = qpnp_pon_config_init(pon);
 	if (rc) {
@@ -1437,6 +1684,7 @@ static int qpnp_pon_remove(struct spmi_device *spmi)
 
 	device_remove_file(&spmi->dev, &dev_attr_debounce_us);
 
+	/*delete dsm_pmu_work*/
 	cancel_delayed_work_sync(&pon->bark_work);
 
 	if (pon->pon_input)
@@ -1444,7 +1692,7 @@ static int qpnp_pon_remove(struct spmi_device *spmi)
 
 	return 0;
 }
-
+/* delete some lines */
 static struct of_device_id spmi_match_table[] = {
 	{ .compatible = "qcom,qpnp-power-on", },
 	{}
@@ -1454,6 +1702,7 @@ static struct spmi_driver qpnp_pon_driver = {
 	.driver		= {
 		.name	= "qcom,qpnp-power-on",
 		.of_match_table = spmi_match_table,
+		/* delete some lines */
 	},
 	.probe		= qpnp_pon_probe,
 	.remove		= qpnp_pon_remove,

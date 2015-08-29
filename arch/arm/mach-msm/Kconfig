@@ -1071,4 +1071,30 @@ config MSM_PP2S_FEMTO
 	  Support for being notified relative to a PP2S pulse
 	  Select Y if you want this notification to manifest.
 	  If unsure, select N.
+
+config HUAWEI_KERNEL
+	bool "Use huawei code"
+	default n
+	help
+	  use huawei code
+
+config HUAWEI_KERNEL_DEBUG
+	bool "Use Huawei kernel debug mode"
+	depends on HUAWEI_KERNEL
+	default n
+	help
+	  Enable sysrq, dump mode and some debug masks by default.
+config HUAWEI_FEATURE_NFF
+	bool "save bootup log to log partition if long power event"
+	depends on HUAWEI_KERNEL
+        default n
+	help
+	  in debug mode,you can use sysrq and dump mode 	 
+
+config HUAWEI_THERMAL
+	bool "Use huawei thermal code"
+	default n
+	help
+	  Use huawei thermal code
+
 endif

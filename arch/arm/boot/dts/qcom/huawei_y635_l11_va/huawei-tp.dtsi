@@ -1,0 +1,38 @@
+&soc {
+    i2c@78b9000 { /* BLSP1 QUP5 */
+        ms-msg21xx@26 {
+            compatible = "mstar,ms-msg21xx";
+            reg = <0x26>;
+            interrupt-parent = <&msm_gpio>;
+            interrupts = <13 0x2008>;
+            vdd-supply = <&pm8916_l16>;
+            vcc_i2c-supply = <&pm8916_l6>;
+            
+            mstar,reset-gpio = <&msm_gpio 12 0x0>;
+            mstar,irq-gpio = <&msm_gpio 13 0x2008>;
+            mstar,panel-coords = <0  0 480 900>;
+            mstar,display-coords = <0 0 480 800>;
+            mstar,i2c-pull-up;
+            /* KeyCode CenterX CenterY */
+            mstar,virtual_keys_1 = <158 80 900>;    /*back*/
+            mstar,virtual_keys_2 = <172 240 900>;/*home*/
+            mstar,virtual_keys_3 = <139 400 900>;/*menu*/
+            
+            mstar,product_name = "ULC02";
+        };
+        
+        synaptics@70 {
+			compatible = "synaptics,rmi4-kill";
+		};
+    };
+    /*To disable gen-vkeys.c probe,avoid generate kobject*/
+    gen-vkeys {
+        compatible = "huawei,gen-vkeys";
+        label = "synaptics_rmi4_i2c";
+        qcom,disp-maxx = <720>;
+        qcom,disp-maxy = <1280>;
+        qcom,panel-maxx = <720>;
+        qcom,panel-maxy = <1369>;
+        qcom,key-codes = <158 172 139>;
+    };
+};

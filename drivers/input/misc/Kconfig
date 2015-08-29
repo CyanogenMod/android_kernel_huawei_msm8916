@@ -216,7 +216,15 @@ config SENSORS_LIS3DH
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called lis3dh_acc.
+config SENSORS_KIONIX
+	tristate "ROHM_KX023 3-axis digital acceleromater"
+	depends on I2C
+	help
+	  Say Y here if you want to support ROHM_KX023
+	  accelerometer connected via an I2C bus.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called kionix_accel.
 config INPUT_APANEL
 	tristate "Fujitsu Lifebook Application Panel buttons"
 	depends on X86 && I2C && LEDS_CLASS
@@ -819,5 +827,36 @@ config SENSORS_BMI058
 	 If you say yes here, you get support for Bosch Sensortec's
 	 sensor driver of BMI058.
 
+# add APDS993X driver
+config APDS993X
+	tristate "Avago APDS993X combined als and proximity sensors"
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for Avago APDS993X
+	  combined ambient light and proximity sensor chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called apds9950. If unsure, say N here.
+config RPR521
+	tristate "ROHM RPR0521 combined als and proximity sensors"
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for ROHM RPR0521
+	  combined ambient light and proximity sensor chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rpr0521. If unsure, say N here.
+config HUAWEI_HALL_AK8789
+	tristate "Support for hall sensor AK8789"
+	depends on HUAWEI_KERNEL
+	default n
+	help
+	  Say Y to enable support ak8789 hall sensor
+config HUAWEI_SENSOR_SELF_ADAPT
+	tristate "Support for sensor self_adapt"
+	depends on HUAWEI_KERNEL
+	default n
+	help
+	  Say Y to enable support self-adapt
 endif
 

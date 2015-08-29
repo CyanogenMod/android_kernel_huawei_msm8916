@@ -35,7 +35,8 @@
 #include "mdss_fb.h"
 #include "mdss_mdp.h"
 #include "mdss_mdp_rotator.h"
-
+/* add log on panel resume and suspend module */
+#include <linux/hw_lcd_common.h>
 #define VSYNC_PERIOD 16
 #define BORDERFILL_NDX	0x0BF000BF
 #define CHECK_BOUNDS(offset, size, max_size) \
@@ -1025,9 +1026,7 @@ static void __mdss_mdp_overlay_free_list_add(struct msm_fb_data_type *mfd,
 	mdp5_data->free_list[i] = *buf;
 	memset(buf, 0, sizeof(*buf));
 }
-
-/**
- * mdss_mdp_overlay_cleanup() - handles cleanup after frame commit
+/**+ * mdss_mdp_overlay_cleanup() - handles cleanup after frame commit
  * @mfd:           Msm frame buffer data structure for the associated fb
  * @destroy_pipes: list of pipes that should be destroyed as part of cleanup
  *
@@ -1044,6 +1043,7 @@ static void mdss_mdp_overlay_cleanup(struct msm_fb_data_type *mfd,
 
 	mutex_lock(&mdp5_data->list_lock);
 	list_for_each_entry(pipe, destroy_pipes, list) {
+
 		/* make sure pipe fetch has been halted before freeing buffer */
 		if (mdss_mdp_pipe_fetch_halt(pipe)) {
 			/*
@@ -1097,7 +1097,6 @@ static void mdss_mdp_overlay_cleanup(struct msm_fb_data_type *mfd,
 	}
 	mutex_unlock(&mdp5_data->list_lock);
 }
-
 void mdss_mdp_handoff_cleanup_pipes(struct msm_fb_data_type *mfd,
 	u32 type)
 {
@@ -1370,13 +1369,14 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 	int ret = 0;
 	int sd_in_pipe = 0;
 	bool need_cleanup = false;
-	struct mdss_mdp_commit_cb commit_cb;
 	LIST_HEAD(destroy_pipes);
-
+	struct mdss_mdp_commit_cb commit_cb;
 	ATRACE_BEGIN(__func__);
-	if (ctl->shared_lock)
+	if (ctl->shared_lock){
 		mutex_lock(ctl->shared_lock);
-
+		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_BEGIN);
+		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_READY);		
+	}
 	mutex_lock(&mdp5_data->ov_lock);
 	mutex_lock(&mdp5_data->list_lock);
 
@@ -1398,8 +1398,8 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 		if (0 == mdss_mdp_overlay_sd_ctrl(mfd, 0))
 			mdp5_data->sd_enabled = 0;
 	}
-
-	mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_BEGIN);
+	if (!ctl->shared_lock)
+		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_BEGIN);
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
 
 	if (data)
@@ -1480,7 +1480,6 @@ commit_fail:
 	ATRACE_END(__func__);
 	return ret;
 }
-
 int mdss_mdp_overlay_release(struct msm_fb_data_type *mfd, int ndx)
 {
 	struct mdss_mdp_pipe *pipe, *tmp;
@@ -1614,10 +1613,6 @@ static int __mdss_mdp_overlay_release_all(struct msm_fb_data_type *mfd,
 		mdss_mdp_overlay_release(mfd, unset_ndx);
 	}
 	mutex_unlock(&mdp5_data->ov_lock);
-
-	if (cnt)
-		mfd->mdp.kickoff_fnc(mfd, NULL);
-
 	list_for_each_entry_safe(rot, tmp, &mdp5_data->rot_proc_list, list) {
 		if (rot->pid == pid) {
 			if (!list_empty(&rot->list))
@@ -1626,9 +1621,8 @@ static int __mdss_mdp_overlay_release_all(struct msm_fb_data_type *mfd,
 		}
 	}
 
-	return 0;
+	return cnt;
 }
-
 static int mdss_mdp_overlay_play_wait(struct msm_fb_data_type *mfd,
 				      struct msmfb_overlay_data *req)
 {
@@ -1689,7 +1683,6 @@ static int mdss_mdp_overlay_queue(struct msm_fb_data_type *mfd,
 
 	return ret;
 }
-
 static void mdss_mdp_overlay_force_cleanup(struct msm_fb_data_type *mfd)
 {
 	struct mdss_overlay_private *mdp5_data = mfd_to_mdp5_data(mfd);
@@ -1708,9 +1701,8 @@ static void mdss_mdp_overlay_force_cleanup(struct msm_fb_data_type *mfd)
 			mdss_mdp_display_wait4comp(ctl);
 	}
 
-	mdss_mdp_overlay_cleanup(mfd);
+	mdss_mdp_overlay_cleanup(mfd, &mdp5_data->pipes_cleanup);
 }
-
 static void mdss_mdp_overlay_force_dma_cleanup(struct mdss_data_type *mdata)
 {
 	struct mdss_mdp_pipe *pipe;
@@ -3192,7 +3184,10 @@ static int mdss_mdp_overlay_on(struct msm_fb_data_type *mfd)
 	int rc;
 	struct mdss_overlay_private *mdp5_data;
 	struct mdss_mdp_ctl *ctl = NULL;
-
+/* add log on panel resume and suspend module */
+#ifdef CONFIG_HUAWEI_LCD
+	LCD_LOG_INFO("start %s\n",__func__);
+#endif
 	if (!mfd)
 		return -ENODEV;
 
@@ -3291,6 +3286,10 @@ static int mdss_mdp_overlay_off(struct msm_fb_data_type *mfd)
 	}
 
 	mutex_lock(&mdp5_data->ov_lock);
+#ifdef CONFIG_HUAWEI_LCD
+	if (atomic_dec_return(&ov_active_panels) == 0)
+		mdss_mdp_rotator_release_all();
+#endif
 	rc = mdss_mdp_ctl_stop(mdp5_data->ctl);
 	if (rc == 0) {
 		mutex_lock(&mdp5_data->list_lock);
@@ -3304,16 +3303,19 @@ static int mdss_mdp_overlay_off(struct msm_fb_data_type *mfd)
 			mdss_mdp_ctl_destroy(mdp5_data->ctl);
 			mdp5_data->ctl = NULL;
 		}
-
+#ifndef CONFIG_HUAWEI_LCD
 		if (atomic_dec_return(&ov_active_panels) == 0)
 			mdss_mdp_rotator_release_all();
-
+#endif
 		rc = pm_runtime_put(&mfd->pdev->dev);
 		if (rc)
 			pr_err("unable to suspend w/pm_runtime_put (%d)\n", rc);
 	}
 	mutex_unlock(&mdp5_data->ov_lock);
-
+/* add log on panel resume and suspend module */
+#ifdef CONFIG_HUAWEI_LCD
+	LCD_LOG_INFO("exit %s\n",__func__);
+#endif
 	return rc;
 }
 

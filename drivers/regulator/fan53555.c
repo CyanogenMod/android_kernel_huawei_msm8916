@@ -106,9 +106,8 @@ struct fan53555_device_info {
 
 	bool disable_suspend;
 };
-
-static int delay_array[] = {10, 20, 30, 40, 50};
-
+/* reduce the probe time of dcdc ic */
+static int delay_array[] = {10, 20, 30, 30};
 static int fan53555_read(struct fan53555_device_info *di, unsigned int reg,
 						unsigned int *val)
 {

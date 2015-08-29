@@ -1,0 +1,9 @@
+menu HUAWEI_LOG_MODULE
+
+config  HUAWEI_LOG_MODULE
+        default n
+	bool "huawei log module"
+	help
+          huawei log module control
+
+endmenu

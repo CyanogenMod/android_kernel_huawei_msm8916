@@ -30,6 +30,9 @@
 #include "venus_hfi.h"
 #include "vidc_hfi_io.h"
 #include "msm_vidc_debug.h"
+#ifdef CONFIG_HUAWEI_DSM
+#include "msm_camera_vid_dsm.h"
+#endif
 
 #define FIRMWARE_SIZE			0X00A00000
 #define REG_ADDR_OFFSET_BITMASK	0x000FFFFF
@@ -1457,6 +1460,11 @@ static int venus_hfi_suspend(void *dev)
 	if (device->power_enabled) {
 		rc = flush_delayed_work(&venus_hfi_pm_work);
 		dprintk(VIDC_INFO, "%s flush delayed work %d\n", __func__, rc);
+		if (rc == 0) {
+			queue_delayed_work(device->venus_pm_workq, &venus_hfi_pm_work, 0);
+			rc = flush_delayed_work(&venus_hfi_pm_work);
+			dprintk(VIDC_INFO, "%s again flush delayed work %d\n", __func__, rc);
+		}
 	}
 	return 0;
 }
@@ -2914,7 +2922,7 @@ static void venus_hfi_pm_hndlr(struct work_struct *work)
 	struct venus_hfi_device *device = list_first_entry(
 			&hal_ctxt.dev_head, struct venus_hfi_device, list);
 	mutex_lock(&device->clk_pwr_lock);
-	if (device->clk_state == ENABLED_PREPARED || !device->power_enabled) {
+	if (!device->power_enabled) {
 		dprintk(VIDC_DBG,
 				"Clocks status: %d, Power status: %d, ignore power off\n",
 				device->clk_state, device->power_enabled);
@@ -3846,6 +3854,9 @@ fail_load_fw:
 	venus_hfi_disable_regulators(device);
 	device->power_enabled = false;
 	mutex_unlock(&device->clk_pwr_lock);
+	#ifdef CONFIG_HUAWEI_DSM
+	camera_vid_report_dsm_err_vidc(DSM_CAMERA_VIDC_LOAD_FW_FAIL, rc, NULL);
+	#endif
 fail_enable_gdsc:
 	venus_hfi_iommu_detach(device);
 fail_iommu_attach:

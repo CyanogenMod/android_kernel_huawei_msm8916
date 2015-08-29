@@ -15,6 +15,9 @@
 #include "msm_isp_util.h"
 #include "msm_isp_axi_util.h"
 #include "msm_camera_io_util.h"
+#ifdef CONFIG_HUAWEI_DSM
+#include "msm_camera_dsm.h"
+#endif
 
 #define SRC_TO_INTF(src) \
 	((src < RDI_INTF_0) ? VFE_PIX_0 : \
@@ -24,6 +27,10 @@
 
 #define MSM_ISP_MIN_AB 450000000
 #define MSM_ISP_MIN_IB 900000000
+
+#ifdef CONFIG_HUAWEI_DSM
+extern void camera_report_dsm_err_msm_isp(struct vfe_device *vfe_dev, int type, int err_num , const char* str);
+#endif
 
 int msm_isp_axi_create_stream(
 	struct msm_vfe_axi_shared_data *axi_data,
@@ -1357,6 +1364,10 @@ static int msm_isp_start_axi_stream(struct vfe_device *vfe_dev,
 
 	if (wait_for_complete)
 		rc = msm_isp_axi_wait_for_cfg_done(vfe_dev, camif_update);
+#ifdef CONFIG_HUAWEI_DSM
+    if (rc < 0)
+      camera_report_dsm_err_msm_isp(vfe_dev, DSM_CAMERA_ISP_AXI_STREAM_FAIL, rc, "start_axi_stream");
+#endif
 
 	return rc;
 }
@@ -1418,6 +1429,9 @@ static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 		rc = msm_isp_axi_wait_for_cfg_done(vfe_dev, camif_update);
 		if (rc < 0) {
 			pr_err("%s: wait for config done failed\n", __func__);
+#ifdef CONFIG_HUAWEI_DSM
+			camera_report_dsm_err_msm_isp(vfe_dev, DSM_CAMERA_ISP_AXI_STREAM_FAIL, rc, "stop_axi_stream");
+#endif
 			for (i = 0; i < stream_cfg_cmd->num_streams; i++) {
 				stream_info = &axi_data->stream_info[
 				HANDLE_TO_IDX(

@@ -1,0 +1,9 @@
+ / {
+        huawei_fac_info {
+                  compatible = "huawei,hw_fac_info";
+                  fac,product_name = "G621-TL00";
+                  fac,hardware_ver = "HL0MSM8916MT0";
+                  fac,software_ver = "MSM8916_G621-TL_VC";
+                  status = "ok";
+        };
+};

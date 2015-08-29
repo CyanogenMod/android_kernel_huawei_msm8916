@@ -1021,5 +1021,48 @@ config TOUCHSCREEN_GT9XX
           If unsure, say N.
 
 source "drivers/input/touchscreen/gt9xx/Kconfig"
+source "drivers/input/touchscreen/gt9xx_hw/Kconfig"
 
+config TOUCHSCREEN_HUAWEI_FOCALTECH_FT6X06
+	tristate "Focaltech Ft6x06 I2C touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you have a focaltech ft6x06 I2C touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ft6x06_i2c.
+
+source "drivers/input/touchscreen/focaltech/Kconfig"
+
+config TOUCHSCREEN_HUAWEI_MSTAR_MSG21XX
+	tristate "MSTAR MSG21XX I2C touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you have a MSTAR MSG21XX I2C touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ft6x06_i2c.
+
+source "drivers/input/touchscreen/mstar/Kconfig"
+
+config TOUCHSCREEN_HUAWEI_SYNAPTICS_DSX_v20
+	bool "Synaptics DSX touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you have a Synaptics DSX touchscreen connected
+	  to your system.
+
+	  If unsure, say N.
+
+source "drivers/input/touchscreen/synaptics_dsx_hw/Kconfig"
+source "drivers/input/touchscreen/cyttsp5/Kconfig"
 endif

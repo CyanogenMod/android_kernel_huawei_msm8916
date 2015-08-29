@@ -1,0 +1,252 @@
+/*Add synaptics new driver "Synaptics DSX I2C V2.0"*/
+/* Open holster flag */
+/*Change i2c frepuence from 100kHZ to 400kHZ*/
+/*Open fast-relax config for better gesture performance*/
+&tlmm_pinmux {
+
+	synaptics_int_pin {
+		qcom,pins = <&gp 13>;
+		qcom,pin-func = <0>;
+		qcom,num-grp-pins = <1>;
+		label = "synaptics-irq";
+		synaptics_int_default: synaptics_int_default {
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+		synaptics_int_sleep: synaptics_int_sleep {
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+};
+&soc {
+	i2c@78b9000 { /* BLSP1 QUP5 */
+		status = "ok";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		qcom,clk-freq-out = <400000>;
+		synaptics@70 {
+			compatible = "synaptics,dsx";
+			reg = <0x70>;
+			pinctrl-names = "int_default","int_sleep";
+			pinctrl-0 = <&synaptics_int_default>;
+			pinctrl-1 = <&synaptics_int_sleep>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <13 0x2008>;
+			vdd-supply = <&pm8916_l17>;
+			vcc_i2c-supply = <&pm8916_l16>;
+			/* Some of qcom's param will not be replaced by huawei in dtb, */
+			/* just ignore them:such as "pinctrl-names","pinctrl-0","pinctrl-1", */
+			/* "synaptics,display-coords","synaptics,panel-coords","synaptics,i2c-pull-up", */
+			/* "synaptics,power-down","synaptics,disable-gpios"*/
+			synaptics,vdd = "vdd";
+			synaptics,vbus = "vcc_i2c";
+			synaptics,irq-gpio = <&msm_gpio 13 0x2008>;
+			synaptics,reset-gpio = <&msm_gpio 12 0x0>;
+
+			synaptics,lcd-x = <720>;
+			synaptics,lcd-y = <1280>;
+			synaptics,lcd-all = <1280>;
+			synaptics,virtual_keys = /* KeyCode CenterX CenterY Width Height */
+				/* KEY_BACK */
+				<158 142 1342 150 100
+				/* KEY_HOME(172) */
+				172 360 1342 150 100
+				/* KEY_MENU */
+				139 578 1342 150 100>;
+
+			/* SYNAPTICS_WAKE_UP_GESTURE_FLAG:'1'->enabled,'0'->disabled */
+			/*IC flash is not enough for holster,so fw del one gesture*/
+			synaptics,gesture_enabled = <0>;
+			/* Gestures that supported:                           */
+			/* bit0  Double tap                                        */
+			/* bit1  Single finger slide from left to right     */
+			/* bit2  Single finger slide from right to left     */
+			/* bit3  Single finger slide from top to bottom  */
+			/* bit4  Single finger slide from bottom to top  */
+			/* bit5  Double finger slide from top to bottom--disable for holster*/
+			/* bit6  Single finger slide circle                     */
+			/* bit7  Single finger write letter c                  */
+			/* bit8  Single finger write letter e                  */
+			/* bit9  Single finger write letter m                 */
+			/* bit10 Single finger write letter w                 */
+			/* bit11 Palm off screen                                */
+			synaptics,easy_wakeup_supported_gestures = <0xF81>;
+
+			/*Defination of report key value  for different gestures*/
+			synaptics,easy_wakeup_gesture_keys = 
+			<	59 /*0.Double tap:KEY_F1*/
+				60 /*1.Single finger slide from left to right*/
+				61 /*2.Single finger slide from right to left:KEY_F3*/
+				62 /*3.Single finger slide from top to bottom*/
+				63 /*4.Single finger slide from bottom to top:KEY_F5*/
+				64 /*5.Single finger slide circle clockwise*/
+				65 /*6.Single finger slide circle counter-clockwise*/
+				66 /*7.Single finger write letter c*/
+				67 /*8.Single finger write letter e:KEY_F9*/
+				68 /*9.Single finger write letter m*/
+				87 /*10.Single finger write letter w:KEY_F11*/
+				88 /*11.Palm off screen*/
+			>;
+
+			/* Double-tap-zone defined by huawei */
+			/* Shielded area is:1cm left,1cm right,3cm up,2cm down */
+			huawei,dtz_x0 = <104>;
+			huawei,dtz_y0 = <423>;
+			huawei,dtz_x1 = <616>;
+			huawei,dtz_y1 = <1068>;
+
+			/* SYNAPTICS_GLOVE_FUNCTION_FLAG:'1'->enabled,'0'->disabled*/
+			synaptics,glove_enabled = <0>;
+			/*After reduce power-consumption by exit reduce mode,*/
+			/*we have to reduce f-r rate to make sure gesture work fine*/
+			synaptics,fast_relax_gesture = <7>;
+			/*Holster support flag*/
+			synaptics,holster_supported = <1>;
+
+			synaptics,reset-on-status = <0>;
+			synaptics,power-delay-ms = <160>;
+			synaptics,reset-delay-ms = <100>;
+			synaptics,reset-active-ms = <90>;
+			synaptics,product_name = "g760L";
+
+			/*capacitance self-adapt*/
+			/*To adjust the cutting angle threshold to the maximum range*/
+			huawei,ofilm {
+				huawei,name = "huawei,ofilm";
+				huawei,rxdiagonal_upperlimit = <1150>;
+				huawei,rxdiagonal_lowerlimit = <850>;
+				huawei,rxothers_upperlimit = <100>;
+				huawei,txtxreport_limit = <0>;
+				huawei,highres_upperlimit = <450 450 0x270f>;/*0x270f==9999*/
+				huawei,highres_lowerlimit = <0 0 0xf060>;/*0xf060==-4000*/
+				huawei,rawcap_upperlimit = <9999>;
+				huawei,rawcap_lowerlimit = <0>;
+
+				huawei,fullraw_upperlimit =
+					<9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999>;
+
+				huawei,fullraw_lowerlimit =
+					<0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0  
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0>;
+			};
+			huawei,junda {
+				huawei,name = "huawei,junda";
+				huawei,rxdiagonal_upperlimit = <1150>;
+				huawei,rxdiagonal_lowerlimit = <850>;
+				huawei,rxothers_upperlimit = <100>;
+				huawei,txtxreport_limit = <0>;
+				huawei,highres_upperlimit = <450 450 0x270f>;/*0x270f==9999*/
+				huawei,highres_lowerlimit = <0 0 0xf060>;/*0xf060==-4000*/
+				huawei,rawcap_upperlimit = <9999>;
+				huawei,rawcap_lowerlimit = <0>;
+
+				huawei,fullraw_upperlimit =
+					<9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999>;
+
+				huawei,fullraw_lowerlimit =
+					<0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0  
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0>;
+			};
+			huawei,truly {
+				huawei,name = "huawei,truly";
+				huawei,rxdiagonal_upperlimit = <1150>;
+				huawei,rxdiagonal_lowerlimit = <850>;
+				huawei,rxothers_upperlimit = <100>;
+				huawei,txtxreport_limit = <0>;
+				huawei,highres_upperlimit = <450 450 0x270f>;/*0x270f==9999*/
+				huawei,highres_lowerlimit = <0 0 0xf060>;/*0xf060==-4000*/
+				huawei,rawcap_upperlimit = <9999>;
+				huawei,rawcap_lowerlimit = <0>;
+
+				huawei,fullraw_upperlimit =
+					<9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 
+					9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999 9999>;
+
+				huawei,fullraw_lowerlimit =
+					<0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0  
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+					0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0>;
+			};
+		};
+	};
+	
+	/*To disable gen-vkeys.c probe,avoid generate kobject*/
+	gen-vkeys {
+		compatible = "huawei,gen-vkeys";
+		label = "synaptics_rmi4_i2c";
+		qcom,disp-maxx = <720>;
+		qcom,disp-maxy = <1280>;
+		qcom,panel-maxx = <720>;
+		qcom,panel-maxy = <1369>;
+		qcom,key-codes = <158 172 139>;
+	};
+
+};

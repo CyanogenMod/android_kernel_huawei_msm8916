@@ -31,11 +31,10 @@
 #define SCM_ERROR		-1
 #define SCM_INTERRUPTED		1
 #define SCM_EBUSY		-55
+#define SCM_EBUSY_WAIT_MS	30
+#define SCM_EBUSY_MAX_RETRY	20
 
 static DEFINE_MUTEX(scm_lock);
-
-#define SCM_EBUSY_WAIT_MS 30
-#define SCM_EBUSY_MAX_RETRY 20
 
 #define SCM_BUF_LEN(__cmd_size, __resp_size)	\
 	(sizeof(struct scm_command) + sizeof(struct scm_response) + \
@@ -157,7 +156,7 @@ static int scm_remap_error(int err)
 	case SCM_ENOMEM:
 		return -ENOMEM;
 	case SCM_EBUSY:
-		return SCM_EBUSY;
+	    return SCM_EBUSY;
 	}
 	return -EINVAL;
 }
@@ -288,7 +287,7 @@ static int scm_call_common(u32 svc_id, u32 cmd_id, const void *cmd_buf,
 
 	return ret;
 }
-
+/*delete #if 0 to define func _scm_call_retry*/
 /*
  * Sometimes the secure world may be busy waiting for a particular resource.
  * In those situations, it is expected that the secure world returns a special
@@ -311,11 +310,10 @@ static int _scm_call_retry(u32 svc_id, u32 cmd_id, const void *cmd_buf,
 	} while (ret == SCM_EBUSY && (retry_count++ < SCM_EBUSY_MAX_RETRY));
 
 	if (ret == SCM_EBUSY)
-		pr_err("scm: secure world busy (rc = SCM_EBUSY)\n");
+		pr_err("scm: secure world busy (rc = SCM_EBUSY),retry_count = %d\n",retry_count);
 
 	return ret;
 }
-
 /**
  * scm_call_noalloc - Send an SCM command
  *
@@ -368,6 +366,8 @@ int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 {
 	struct scm_command *cmd;
 	int ret;
+	/*delete the define retry_count*/
+	
 	size_t len = SCM_BUF_LEN(cmd_len, resp_len);
 
 	if (cmd_len > len || resp_len > len)
@@ -376,12 +376,14 @@ int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 	cmd = kzalloc(PAGE_ALIGN(len), GFP_KERNEL);
 	if (!cmd)
 		return -ENOMEM;
-
 	ret = scm_call_common(svc_id, cmd_id, cmd_buf, cmd_len, resp_buf,
 				resp_len, cmd, len);
-	if (unlikely(ret == SCM_EBUSY))
+	if (unlikely(ret == SCM_EBUSY)){
+		pr_err("%s: SCM_EBUSY start retry \n",__func__);
 		ret = _scm_call_retry(svc_id, cmd_id, cmd_buf, cmd_len,
 				      resp_buf, resp_len, cmd, PAGE_ALIGN(len));
+		pr_err("%s: SCM_EBUSY end retry ret=%d \n",__func__,ret);
+	}
 	kfree(cmd);
 	return ret;
 }

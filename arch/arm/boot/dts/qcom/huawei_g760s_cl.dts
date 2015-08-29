@@ -1,0 +1,165 @@
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+#include "msm8939.dtsi"
+#include "msm8939-qrd.dtsi"
+/* add default lcd dtsi to G760S*/
+//#include "dsi-panel-r63421-1080p-cmd.dtsi"
+/*close this dtsi, use huawei-camera.dtsi which is in folder huawei_g760s_cl*/
+//#include "msm8939-camera-sensor-huawei.dtsi"
+#include "huawei_g760s_cl/huawei.dtsi"
+/ {
+	model = "Qualcomm MSM 8939 HUAWEI G760S-CL";
+	compatible = "qcom,msm8939-qrd", "qcom,msm8939", "qcom,qrd";
+	qcom,board-id = <8008 0> , <8008 4>;
+};
+
+&pm8916_bms {
+	status = "ok";
+	qcom,disable-bms;
+};
+
+&tlmm_pinmux {
+
+	tps65132-en-pin {
+		qcom,pins = <&gp 97>, <&gp 32>;
+		qcom,num-grp-pins = <2>;
+		label = "tps65132_en_pins";
+		qcom,pin-func = <0>;
+
+		tps65132_en_default: en-default {
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+        lm3642-en-pin {
+                qcom,pins = <&gp 31>, <&gp 86>;
+                qcom,num-grp-pins = <2>;
+                label = "lm3642_en_pins";
+                qcom,pin-func = <0>;
+
+                lm3642_en_default: en-default {
+                        driver-strength = <2>;
+                        bias-disable;
+                };
+                lm3642_en_suspend: en-suspend {
+                        driver-strength = <2>;
+                        bias-pull-down;
+                };
+        };
+};
+
+&i2c_0 { /* BLSP1 QUP2 */
+	tps65132@3e {
+		compatible = "ti,tps65132";
+		reg = <0x3e>;
+		i2c-pwr-supply = <&pm8916_l6>;
+		ti,en-gpio-lpm;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tps65132_en_default>;
+
+		regulators {
+			tps65132_pos: pos-boost {
+				regulator-name = "tps65132-pos";
+				regulator-min-microvolt = <5400000>;
+				regulator-max-microvolt = <5400000>;
+				ti,discharge-enable;
+				ti,enable-time = <800>;
+				ti,current-limit = <200000>;
+				ti,en-gpio = <&msm_gpio 97 0>;
+			};
+
+			tps65132_neg: neg-boost {
+				regulator-name = "tps65132-neg";
+				regulator-min-microvolt = <5400000>;
+				regulator-max-microvolt = <5400000>;
+				ti,discharge-enable;
+				ti,enable-time = <800>;
+				ti,current-limit = <40000>;
+				ti,en-gpio = <&msm_gpio 32 0>;
+			};
+		};
+	};
+        flash_lm3642:qcom,led-flash@63 {
+                reg = <0x63>;
+                cell-index = <0>;
+                qcom,slave-id = <0xC6 0x00 0x0011>;
+                compatible = "ti,lm3642";
+                label = "lm3642";
+                qcom,flash-type = <1>;
+                pinctrl-names = "cam_flash_default","cam_flash_suspend";
+                pinctrl-0 = <&lm3642_en_default>;
+                pinctrl-1 = <&lm3642_en_suspend>;
+                gpios = <&msm_gpio 86 0>,
+                        <&msm_gpio 31 0>;
+                qcom,gpio-flash-en = <0>;
+                qcom,gpio-flash-now = <1>;
+                qcom,gpio-req-tbl-num = <0 1>;
+                qcom,gpio-req-tbl-flags = <0 0>;
+                qcom,gpio-req-tbl-label = "FLASH_EN",
+                        "FLASH_NOW";
+        };
+};
+
+&mdss_mdp {
+	qcom,mdss-pref-prim-intf = "dsi";
+};
+
+&pmx_mdss {
+	qcom,num-grp-pins = <1>;
+	qcom,pins = <&gp 25>;
+};
+
+&pmx_mdss_te {
+	qcom,num-grp-pins = <1>;
+	qcom,pins = <&gp 24>;
+};
+
+&mdss_dsi0 {
+	qcom,regulator-ldo-mode;
+	qcom,platform-regulator-settings = [02 09 03 00 20 00 01];
+	/* add default lcd dtsi to G760S*/
+	//qcom,dsi-pref-prim-pan = <&dsi_r63421_1080p_cmd>;
+	pinctrl-names = "mdss_default", "mdss_sleep";
+	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
+	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
+
+	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
+
+	vsp-supply = <&tps65132_pos>;
+	vsn-supply = <&tps65132_neg>;
+
+	qcom,panel-supply-entries {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,panel-supply-entry@2 {
+			reg = <2>;
+			qcom,supply-name = "vsp";
+			qcom,supply-min-voltage = <5400000>;
+			qcom,supply-max-voltage = <5400000>;
+			qcom,supply-enable-load = <200>;
+			qcom,supply-disable-load = <0>;
+		};
+
+		qcom,panel-supply-entry@3 {
+			reg = <3>;
+			qcom,supply-name = "vsn";
+			qcom,supply-min-voltage = <5400000>;
+			qcom,supply-max-voltage = <5400000>;
+			qcom,supply-enable-load = <40>;
+			qcom,supply-disable-load = <0>;
+		};
+	};
+
+};

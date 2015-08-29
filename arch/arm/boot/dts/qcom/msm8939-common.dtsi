@@ -9,7 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
 / {
 	interrupt-parent = <&intc>;
 	aliases {
@@ -31,7 +30,6 @@
 		i2c4 = &i2c_4;
 		i2c5 = &i2c_5;
 		i2c6 = &i2c_6;
-		spi0 = &spi_0;
 	};
 
 	memory {
@@ -45,12 +43,11 @@
 			reg = <0x0 0x86000000 0x0 0x0800000>;
 			label = "external_image_mem";
 		};
-
 		modem_adsp_mem: modem_adsp_region@0 {
 			linux,reserve-contiguous-region;
 			linux,reserve-region;
 			linux,remove-completely;
-			reg = <0x0 0x86800000 0x0 0x05500000>;
+			reg = <0x0 0x86800000 0x0 0x05700000>;
 			label = "modem_adsp_mem";
 		};
 
@@ -58,10 +55,9 @@
 			linux,reserve-contiguous-region;
 			linux,reserve-region;
 			linux,remove-completely;
-			reg = <0x0 0x8bd00000 0x0 0x0600000>;
+			reg = <0x0 0x8bf00000 0x0 0x0600000>;
 			label = "peripheral_mem";
 		};
-
 		venus_mem: venus_region@0 {
 			linux,reserve-contiguous-region;
 			linux,memory-limit = <0x90000000>;
@@ -204,7 +200,7 @@
 		compatible = "qcom,msm-watchdog";
 		reg = <0xb017000 0x1000>;
 		interrupts = <0 3 0>, <0 4 0>;
-		qcom,bark-time = <11000>;
+		qcom,bark-time = <13000>;
 		qcom,pet-time = <10000>;
 		qcom,ipi-ping;
 	};
@@ -762,7 +758,6 @@
 			qcom,reset-bam-on-connect;
 		};
 	};
-
 	usb_otg: usb@78d9000 {
 		compatible = "qcom,hsusb-otg";
 
@@ -780,7 +775,7 @@
 		qcom,hsusb-otg-phy-type = <2>;
 		qcom,hsusb-otg-mode = <1>;
 		qcom,hsusb-otg-otg-control = <2>;
-		qcom,hsusb-otg-disable-reset;
+		qcom,hsusb-otg-disable-reset = <0>;
 		qcom,dp-manual-pullup;
 
 		qcom,msm-bus,name = "usb2";
@@ -802,7 +797,6 @@
 				"xo";
 		qcom,bus-clk-rate = <331200000 200000000 100000000>;
 	};
-
 	android_usb: android_usb@086000c8 {
 		compatible = "qcom,android-usb";
 		reg = <0x086000c8 0xc8>;
@@ -882,9 +876,11 @@
 		clock-names = "iface_clk", "core_clk";
 		qcom,clk-freq-out = <100000>;
 		qcom,clk-freq-in  = <19200000>;
-		pinctrl-names = "i2c_active", "i2c_sleep";
+		pinctrl-names = "i2c_active", "i2c_sleep", "i2c_defult";
 		pinctrl-0 = <&i2c_0_active>;
 		pinctrl-1 = <&i2c_0_sleep>;
+		pinctrl-2 = <&i2c_0_defult>;
+		gpios = <&msm_gpio 7 0>, <&msm_gpio 6 0>;
 		qcom,noise-rjct-scl = <0>;
 		qcom,noise-rjct-sda = <0>;
 		qcom,bam-pipe-idx-cons = <6>;
@@ -892,30 +888,7 @@
 		qcom,master-id = <86>;
 	};
 
-	spi_0: spi@78b7000 { /* BLSP1 QUP3 */
-		compatible = "qcom,spi-qup-v2";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg-names = "spi_physical", "spi_bam_physical";
-		reg = <0x78b7000 0x600>,
-			<0x7884000 0x23000>;
-		interrupt-names = "spi_irq", "spi_bam_irq";
-		interrupts = <0 97 0>, <0 238 0>;
-		spi-max-frequency = <19200000>;
-		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&spi0_default &spi0_cs0_active>;
-		pinctrl-1 = <&spi0_sleep &spi0_cs0_sleep>;
-		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-			<&clock_gcc clk_gcc_blsp1_qup3_spi_apps_clk>;
-		clock-names = "iface_clk", "core_clk";
-		qcom,infinite-mode = <0>;
-		qcom,use-bam;
-		qcom,use-pinctrl;
-		qcom,ver-reg-exists;
-		qcom,bam-consumer-pipe-index = <8>;
-		qcom,bam-producer-pipe-index = <9>;
-		qcom,master-id = <86>;
-		};
+
 
 	i2c_4: i2c@78b8000 { /* BLSP1 QUP4 */
 		compatible = "qcom,i2c-msm-v2";
@@ -1098,6 +1071,20 @@
                         reg = <0x6b0 32>;
                 };
 
+		crash_magic_addr@a94 {
+			compatible = "qcom,msm-imem-crash_magic_addr";
+			reg = <0xa94 4>;
+		};
+
+		crash_len_addr@a98 {
+			compatible = "qcom,msm-imem-crash_len_addr";
+			reg = <0xa98 4>;
+		};
+
+		hw_reset_magic_addr@a9c {
+			compatible = "qcom,msm-imem-hw_reset_magic_addr";
+			reg = <0xa9c 4>;
+		};
 	};
 
 	blsp1_uart1: serial@78af000 {
@@ -1724,5 +1711,4 @@
 	clocks = <&clock_gcc clk_gcc_venus0_core1_vcodec0_clk>;
 	status = "okay";
 };
-
 #include "msm8939-gpu.dtsi"

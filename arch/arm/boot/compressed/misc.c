@@ -22,6 +22,10 @@ unsigned int __machine_arch_type;
 #include <linux/types.h>
 #include <linux/linkage.h>
 
+#ifdef CONFIG_SRECORDER
+#include <linux/srecorder.h>
+#endif
+
 static void putstr(const char *ptr);
 extern void error(char *x);
 
@@ -129,6 +133,9 @@ asmlinkage void __div0(void)
 
 extern int do_decompress(u8 *input, int len, u8 *output, void (*error)(char *x));
 
+#ifdef CONFIG_SRECORDER
+#include "srecorder.c"
+#endif
 
 void
 decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
@@ -142,6 +149,10 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 	free_mem_end_ptr	= free_mem_ptr_end_p;
 	__machine_arch_type	= arch_id;
 
+#ifdef CONFIG_SRECORDER
+    srecorder_retrieve_previous_log();
+#endif
+    
 	arch_decomp_setup();
 
 	putstr("Uncompressing Linux...");

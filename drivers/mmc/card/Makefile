@@ -9,3 +9,8 @@ obj-$(CONFIG_MMC_TEST)		+= mmc_test.o
 obj-$(CONFIG_SDIO_UART)		+= sdio_uart.o
 
 obj-$(CONFIG_MMC_BLOCK_TEST)		+= mmc_block_test.o
+
+obj-$(CONFIG_HW_MMC_TEST_MODULE)	+= hw_mmc_test.o
+obj-$(CONFIG_HW_MMC_AGING_TEST_MODULE)	+= hw_mmc_aging_test.o
+obj-$(CONFIG_MMC_FFU)		+= ffu.o
+

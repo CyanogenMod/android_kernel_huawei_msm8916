@@ -353,6 +353,9 @@ CFLAGS_KERNEL	=
 AFLAGS_KERNEL	=
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
+ifeq ($(HIDE_PRODUCT_INFO),true)
+	CFLAGS_KERNEL	+= -DHIDE_PRODUCT_INFO_KERNEL
+endif
 
 # Use USERINCLUDE when you must reference the UAPI directories only.
 USERINCLUDE    := \
@@ -360,7 +363,16 @@ USERINCLUDE    := \
 		-Iarch/$(hdr-arch)/include/generated/uapi \
 		-I$(srctree)/include/uapi \
 		-Iinclude/generated/uapi \
-                -include $(srctree)/include/linux/kconfig.h
+		-Isound/soc/codecs \
+		-Idrivers/hw_fac_info \
+		-Isound/soc/msm/qdsp6v2 \
+		-Idrivers/input/touchscreen/mstar \
+		-Idrivers/media/platform/msm/camera_v2/sensor/csid \
+		-Idrivers/devfreq \
+		-Idrivers/media/platform/msm/camera_v2/sensor/csiphy \
+		-Isound/soc/msm \
+		-Idrivers/video/msm/mdss \
+        -include $(srctree)/include/linux/kconfig.h
 
 # Use LINUXINCLUDE when you must reference the include/ directory.
 # Needed to be compatible with the O= option

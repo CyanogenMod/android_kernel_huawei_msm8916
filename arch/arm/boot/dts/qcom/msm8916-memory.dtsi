@@ -25,11 +25,12 @@
 			label = "external_image_mem";
 		};
 
+		/*modify the modem size from 78M to 86M*/
 		modem_adsp_mem: modem_adsp_region@0 {
 			linux,reserve-contiguous-region;
 			linux,reserve-region;
 			linux,remove-completely;
-			reg = <0x0 0x86800000 0x0 0x05500000>;
+			reg = <0x0 0x86800000 0x0 0x05800000>;
 			label = "modem_adsp_mem";
 		};
 
@@ -37,16 +38,9 @@
 			linux,reserve-contiguous-region;
 			linux,reserve-region;
 			linux,remove-completely;
-			reg = <0x0 0x8bd00000 0x0 0x0600000>;
+			reg = <0x0 0x8c000000 0x0 0x0600000>;
 			label = "peripheral_mem";
 		};
-
-		secure_mem: secure_region@0 {
-			linux,reserve-contiguous-region;
-			reg = <0 0 0 0x6D00000>;
-			label = "secure_mem";
-		};
-
 		venus_qseecom_mem: venus_qseecom_region@0 {
 			linux,reserve-contiguous-region;
 			linux,memory-limit = <0x90000000>;

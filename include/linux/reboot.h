@@ -21,6 +21,16 @@ enum reboot_mode {
 extern int register_reboot_notifier(struct notifier_block *);
 extern int unregister_reboot_notifier(struct notifier_block *);
 
+/* DTS20141205XXXXX qidechun/yantongguang 2014-12-05 begin */ 
+#ifdef CONFIG_SRECORDER
+#ifdef CONFIG_POWERCOLLAPSE
+#ifndef CONFIG_KPROBES
+extern int register_emergency_reboot_notifier(struct notifier_block *);
+extern int unregister_emergency_reboot_notifier(struct notifier_block *);
+#endif
+#endif
+#endif /* CONFIG_SRECORDER */
+/* DTS20141205XXXXX qidechun/yantongguang 2014-12-05 end */ 
 
 /*
  * Architecture-specific implementations of sys_reboot commands.

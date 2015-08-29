@@ -39,6 +39,7 @@
 #include <linux/log2.h>
 #include <linux/crc16.h>
 #include <linux/cleancache.h>
+/*need not the code, delete five line */
 #include <asm/uaccess.h>
 
 #include <linux/kthread.h>
@@ -50,9 +51,18 @@
 #include "xattr.h"
 #include "acl.h"
 #include "mballoc.h"
+#ifdef CONFIG_EXT4_HUAWEI_READ_ONLY_RECOVERY
+#include <linux/reboot.h>
+#endif
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ext4.h>
+
+#ifdef CONFIG_FEATURE_HUAWEI_EMERGENCY_DATA
+#include <asm/setup.h>
+#include <linux/reboot.h>
+extern unsigned int get_datamount_flag(void);
+#endif
 
 static struct proc_dir_entry *ext4_proc_root;
 static struct kset *ext4_kset;
@@ -389,6 +399,8 @@ static void ext4_handle_error(struct super_block *sb)
 	if (sb->s_flags & MS_RDONLY)
 		return;
 
+	/*need not the code, delete four line */
+
 	if (!test_opt(sb, ERRORS_CONT)) {
 		journal_t *journal = EXT4_SB(sb)->s_journal;
 
@@ -403,7 +415,99 @@ static void ext4_handle_error(struct super_block *sb)
 	if (test_opt(sb, ERRORS_PANIC))
 		panic("EXT4-fs (device %s): panic forced after error\n",
 			sb->s_id);
+#ifdef CONFIG_EXT4_HUAWEI_READ_ONLY_RECOVERY
+{
+	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
+
+    /* Update error status flag and restart */
+	es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
+    ext4_commit_super(sb, 1);
+#ifdef CONFIG_FEATURE_HUAWEI_EMERGENCY_DATA
+        /*
+         * if is factory mode, same to orignal.
+         * if flag equal to 0, this phone boot not caused by ext4_handle_error, so reboot.
+         * if flag equal to 1, this phone boot caused by ext4_handle_error, so not reboot again.
+         */
+        if (is_runmode_factory()) { // factory mode
+            kernel_restart(NULL);
+        } else { // not factory mode
+            if (get_datamount_flag() == 0) {
+                kernel_restart("mountfail");
+                        }
+        }
+#else
+    kernel_restart(NULL);
+#endif
 }
+#endif
+
+    
+}
+
+/* move function ext4_msg&__ext4_warning from below to here */
+void ext4_msg(struct super_block *sb, const char *prefix, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk("%sEXT4-fs (%s): %pV\n", prefix, sb->s_id, &vaf);
+	va_end(args);
+}
+void __ext4_warning(struct super_block *sb, const char *function,
+		    unsigned int line, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk(KERN_WARNING "EXT4-fs warning (device %s): %s:%d: %pV\n",
+	       sb->s_id, function, line, &vaf);
+	va_end(args);
+}
+
+#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
+#include <linux/store_log.h>
+/**
+ * ext4_msg_append() - support ext4_msg, and export error log
+ * @code: error number
+ * @sb: superblock
+ * @prefix: message prefix
+ * @fmt: message format
+ */
+void ext4_msg_append(unsigned int code,
+        struct super_block *sb, const char *prefix, const char *fmt, ...)
+{
+    struct va_format vaf;
+    va_list args;
+    bool need_log = false;
+
+    if ((prefix[1] <= ((char*)KERN_ERR)[1]) &&
+        (prefix[1] >= ((char*)KERN_EMERG)[1]) &&
+        (!is_log_partition_by_devname(sb->s_id)))
+        need_log = true;
+
+    va_start(args, fmt);
+    vaf.fmt = fmt;
+    vaf.va = &args;
+    printk("%sEXT4-fs (%s): %pV\n", prefix, sb->s_id, &vaf);
+    if (need_log)
+        MSG_WRAPPER(code, "%s %pV", sb->s_id, &vaf);
+    va_end(args);
+}
+
+#define ext4_msgr(sb, prefix, fmt, a...) \
+    ext4_msg_append(STORAGE_ERROR_BASE|EXT4_MOUNT_ERROR_BASE|EXT4_MOUNT_READ_ERR, \
+        (sb), (prefix), (fmt), ## a)
+#define ext4_msgw(sb, prefix, fmt, a...) \
+    ext4_msg_append(STORAGE_ERROR_BASE|EXT4_MOUNT_ERROR_BASE|EXT4_MOUNT_WRITE_ERR, \
+        (sb), (prefix), (fmt), ## a)
+#define ext4_msg(sb, prefix, fmt, a...) \
+    ext4_msg_append(STORAGE_ERROR_BASE|EXT4_MOUNT_ERROR_BASE|EXT4_MOUNT_CHECK_ERR, \
+        (sb), (prefix), (fmt), ## a)
+#endif
 
 void __ext4_error(struct super_block *sb, const char *function,
 		  unsigned int line, const char *fmt, ...)
@@ -416,6 +520,11 @@ void __ext4_error(struct super_block *sb, const char *function,
 	vaf.va = &args;
 	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: comm %s: %pV\n",
 	       sb->s_id, function, line, current->comm, &vaf);
+#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
+	if (!is_log_partition_by_devname(sb->s_id))
+		MSG_WRAPPER(STORAGE_ERROR_BASE|EXT4_RUNNING_ERROR_BASE|EXT4_ERR,
+				"%s %s %#x", sb->s_id, function, line);
+#endif
 	va_end(args);
 	save_error_info(sb, function, line);
 
@@ -436,6 +545,11 @@ void ext4_error_inode(struct inode *inode, const char *function,
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
+#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
+	if (!is_log_partition_by_devname(inode->i_sb->s_id))
+		MSG_WRAPPER(STORAGE_ERROR_BASE|EXT4_RUNNING_ERROR_BASE|EXT4_ERR_INODE,
+				"%s %s %#x %#lx", inode->i_sb->s_id, function, line, inode->i_ino);
+#endif
 	if (block)
 		printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: "
 		       "inode #%lu: block %llu: comm %s: %pV\n",
@@ -467,6 +581,11 @@ void ext4_error_file(struct file *file, const char *function,
 	path = d_path(&(file->f_path), pathname, sizeof(pathname));
 	if (IS_ERR(path))
 		path = "(unknown)";
+#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
+	if (!is_log_partition_by_devname(inode->i_sb->s_id))
+		MSG_WRAPPER(STORAGE_ERROR_BASE|EXT4_RUNNING_ERROR_BASE|EXT4_ERR_FILE,
+				"%s %s %#x %#lx", inode->i_sb->s_id, function, line, inode->i_ino);
+#endif
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
@@ -580,31 +699,7 @@ void __ext4_abort(struct super_block *sb, const char *function,
 		panic("EXT4-fs panic from previous error\n");
 }
 
-void ext4_msg(struct super_block *sb, const char *prefix, const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-
-	va_start(args, fmt);
-	vaf.fmt = fmt;
-	vaf.va = &args;
-	printk_ratelimited("%sEXT4-fs (%s): %pV\n", prefix, sb->s_id, &vaf);
-	va_end(args);
-}
-
-void __ext4_warning(struct super_block *sb, const char *function,
-		    unsigned int line, const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-
-	va_start(args, fmt);
-	vaf.fmt = fmt;
-	vaf.va = &args;
-	printk(KERN_WARNING "EXT4-fs warning (device %s): %s:%d: %pV\n",
-	       sb->s_id, function, line, &vaf);
-	va_end(args);
-}
+/* move function ext4_msg&__ext4_warning from here to above */
 
 void __ext4_grp_locked_error(const char *function, unsigned int line,
 			     struct super_block *sb, ext4_group_t grp,
@@ -3322,7 +3417,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (!(bh = sb_bread(sb, logical_sb_block))) {
+#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
+		ext4_msgr(sb, KERN_ERR, "unable to read superblock");
+#else
 		ext4_msg(sb, KERN_ERR, "unable to read superblock");
+#endif
 		goto out_fail;
 	}
 	/*
@@ -3523,8 +3622,13 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		offset = do_div(logical_sb_block, blocksize);
 		bh = sb_bread(sb, logical_sb_block);
 		if (!bh) {
+#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
+			ext4_msgr(sb, KERN_ERR,
+					"Can't read superblock on 2nd try");
+#else
 			ext4_msg(sb, KERN_ERR,
-			       "Can't read superblock on 2nd try");
+					"Can't read superblock on 2nd try");
+#endif
 			goto failed_mount;
 		}
 		es = (struct ext4_super_block *)(bh->b_data + offset);
@@ -4425,8 +4529,13 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 
 		error = buffer_write_io_error(sbh);
 		if (error) {
+#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
+			ext4_msgw(sb, KERN_ERR, "I/O error while writing "
+					"superblock");
+#else
 			ext4_msg(sb, KERN_ERR, "I/O error while writing "
-			       "superblock");
+					"superblock");
+#endif
 			clear_buffer_write_io_error(sbh);
 			set_buffer_uptodate(sbh);
 		}

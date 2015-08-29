@@ -29,6 +29,10 @@
 #define HASH_SHIFT ilog2(PAGE_SIZE / sizeof(struct list_head))
 #define HASH_SIZE (1UL << HASH_SHIFT)
 
+#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
+#include <linux/store_log.h>
+#endif
+
 static int event;
 static DEFINE_IDA(mnt_id_ida);
 static DEFINE_IDA(mnt_group_ida);
@@ -2508,6 +2512,9 @@ SYSCALL_DEFINE5(mount, char __user *, dev_name, char __user *, dir_name,
 	struct filename *kernel_dir;
 	char *kernel_dev;
 	unsigned long data_page;
+#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
+    static bool need_log = true;
+#endif
 
 	ret = copy_mount_string(type, &kernel_type);
 	if (ret < 0)
@@ -2529,6 +2536,12 @@ SYSCALL_DEFINE5(mount, char __user *, dev_name, char __user *, dir_name,
 
 	ret = do_mount(kernel_dev, kernel_dir->name, kernel_type, flags,
 		(void *) data_page);
+#ifdef CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG
+    if (!ret && need_log) {
+        need_log = false;
+        MSG_WRAPPER(DEVICE_ACTION_BASE|DEVICE_STARTUP, "PowerOn");
+    }
+#endif
 
 	free_page(data_page);
 out_data:

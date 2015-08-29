@@ -17,6 +17,14 @@
 #include "camera.h"
 #include "msm_cci.h"
 #include "msm_camera_dt_util.h"
+#include "misc/app_info.h"
+#include "sensor_otp_common_if.h"
+
+#ifdef CONFIG_HUAWEI_HW_DEV_DCT
+#include <linux/hw_dev_dec.h>
+#endif
+
+#include "./msm.h"
 
 /* Logging macro */
 /*#define MSM_SENSOR_DRIVER_DEBUG*/
@@ -326,10 +334,11 @@ int32_t msm_sensor_driver_probe(void *setting)
 	struct msm_sensor_power_setting     *power_down_setting = NULL;
 	struct msm_camera_slave_info        *camera_info = NULL;
 	struct msm_camera_power_ctrl_t      *power_info = NULL;
+	struct msm_sensor_cam_id_t          *cam_id =NULL;
 	int c, end;
 	struct msm_sensor_power_setting     power_down_setting_t;
 	unsigned long mount_pos = 0;
-
+	int32_t index = -1;
 	/* Validate input parameters */
 	if (!setting) {
 		pr_err("failed: slave_info %p", setting);
@@ -489,6 +498,26 @@ int32_t msm_sensor_driver_probe(void *setting)
 
 	s_ctrl->sensordata->slave_info = camera_info;
 
+	/*For test MCAM_ID*/
+	cam_id = kzalloc(sizeof(*cam_id),GFP_KERNEL);
+	if(!cam_id){
+		pr_err("failed: no memory cam_id %p",cam_id);
+		rc = -ENOMEM;
+		goto FREE_CAMERA_INFO;
+	}
+	if(slave_info->sensor_cam_id){
+		if (copy_from_user(cam_id,(void *)slave_info->sensor_cam_id,sizeof(*cam_id))) {
+			pr_err("sensor_cam_id failed: copy_from_user");
+			rc = -EFAULT;
+			goto FREE_CAMID;
+		}
+		camera_info->mcam_id = cam_id->cam_excepted_id;
+		CDBG("%s expect CAMID %d",slave_info->sensor_name,camera_info->mcam_id);
+	}else{
+		CDBG("%s no need to match CAMID",slave_info->sensor_name);
+		camera_info->mcam_id = 2;
+	}
+
 	/* Fill sensor slave info */
 	camera_info->sensor_slave_addr = slave_info->slave_addr;
 	camera_info->sensor_id_reg_addr =
@@ -500,7 +529,7 @@ int32_t msm_sensor_driver_probe(void *setting)
 		pr_err("failed: sensor_i2c_client %p",
 			s_ctrl->sensor_i2c_client);
 		rc = -EINVAL;
-		goto FREE_CAMERA_INFO;
+		goto FREE_CAMID;
 	}
 	/* Fill sensor address type */
 	s_ctrl->sensor_i2c_client->addr_type = slave_info->addr_type;
@@ -511,7 +540,7 @@ int32_t msm_sensor_driver_probe(void *setting)
 	cci_client = s_ctrl->sensor_i2c_client->cci_client;
 	if (!cci_client) {
 		pr_err("failed: cci_client %p", cci_client);
-		goto FREE_CAMERA_INFO;
+		goto FREE_CAMID;
 	}
 	cci_client->cci_i2c_master = s_ctrl->cci_i2c_master;
 	cci_client->sid = slave_info->slave_addr >> 1;
@@ -528,7 +557,7 @@ int32_t msm_sensor_driver_probe(void *setting)
 	if (rc < 0) {
 		pr_err("failed: msm_camera_get_dt_power_setting_data rc %d",
 			rc);
-		goto FREE_CAMERA_INFO;
+		goto FREE_CAMID;
 	}
 
 	/* Parse and fill vreg params for powerdown settings*/
@@ -540,7 +569,7 @@ int32_t msm_sensor_driver_probe(void *setting)
 	if (rc < 0) {
 		pr_err("failed: msm_camera_fill_vreg_params for PDOWN rc %d",
 			rc);
-		goto FREE_CAMERA_INFO;
+		goto FREE_CAMID;
 	}
 
 	/* Update sensor, actuator and eeprom name in
@@ -555,7 +584,7 @@ int32_t msm_sensor_driver_probe(void *setting)
 	rc = msm_sensor_fill_eeprom_subdevid_by_name(s_ctrl);
 	if (rc < 0) {
 		pr_err("%s failed %d\n", __func__, __LINE__);
-		goto FREE_CAMERA_INFO;
+		goto FREE_CAMID;
 	}
 	/*
 	 * Update actuator subdevice Id by input actuator name
@@ -563,18 +592,52 @@ int32_t msm_sensor_driver_probe(void *setting)
 	rc = msm_sensor_fill_actuator_subdevid_by_name(s_ctrl);
 	if (rc < 0) {
 		pr_err("%s failed %d\n", __func__, __LINE__);
-		goto FREE_CAMERA_INFO;
+		goto FREE_CAMID;
 	}
 
 	/* Power up and probe sensor */
 	rc = s_ctrl->func_tbl->sensor_power_up(s_ctrl);
 	if (rc < 0) {
 		pr_err("%s power up failed", slave_info->sensor_name);
-		goto FREE_CAMERA_INFO;
+		goto FREE_CAMID;
 	}
 
-	pr_err("%s probe succeeded", slave_info->sensor_name);
+	//set otp info
+	if ( is_exist_otp_function(s_ctrl, &index)){
+		if(otp_function_lists[index].is_boot_load){
+			rc = otp_function_lists[index].sensor_otp_function(s_ctrl, index);
+			if (rc < 0){
+				pr_err("%s:%d failed rc %d\n", __func__,__LINE__, rc);
+			}
+		}
+	}
 
+	pr_err("%s probe succeeded \n", slave_info->sensor_name);
+	
+	if (0 == slave_info->camera_id){
+		rc = app_info_set("camera_main", slave_info->sensor_name);
+	}
+	else if (1 == slave_info->camera_id){
+		rc = app_info_set("camera_slave", slave_info->sensor_name);
+	}
+	else{
+		pr_err("%s app_info_set id err", slave_info->sensor_name);
+	}
+
+#ifdef CONFIG_HUAWEI_HW_DEV_DCT
+	if(0 == slave_info->camera_id) //detet main senor or sub sensor
+	{
+		set_hw_dev_flag(DEV_I2C_CAMERA_MAIN);   //set sensor flag
+	}
+	else if (1 == slave_info->camera_id)       //sub sensor
+	{
+		set_hw_dev_flag(DEV_I2C_CAMERA_SLAVE);  //set sensor flag
+	}
+	else
+	{
+		pr_err("%s set_hw_dev_flag id err", slave_info->sensor_name);
+	}
+#endif
 	/*
 	  Set probe succeeded flag to 1 so that no other camera shall
 	 * probed on this slot
@@ -603,13 +666,13 @@ int32_t msm_sensor_driver_probe(void *setting)
 		s_ctrl->sensordata->sensor_info);
 	if (rc < 0) {
 		pr_err("%s Fill slave info failed", slave_info->sensor_name);
-		goto FREE_CAMERA_INFO;
+		goto FREE_CAMID;
 	}
 	rc = msm_sensor_validate_slave_info(s_ctrl->sensordata->sensor_info);
 	if (rc < 0) {
 		pr_err("%s Validate slave info failed",
 			slave_info->sensor_name);
-		goto FREE_CAMERA_INFO;
+		goto FREE_CAMID;
 	}
 	/* Update sensor mount angle and position in media entity flag */
 	mount_pos = s_ctrl->sensordata->sensor_info->position << 16;
@@ -620,10 +683,13 @@ int32_t msm_sensor_driver_probe(void *setting)
 	/*Save sensor info*/
 	s_ctrl->sensordata->cam_slave_info = slave_info;
 
+	kfree(cam_id);
 	return rc;
 
 CAMERA_POWER_DOWN:
 	s_ctrl->func_tbl->sensor_power_down(s_ctrl);
+FREE_CAMID:
+	kfree(cam_id);
 FREE_CAMERA_INFO:
 	kfree(camera_info);
 FREE_POWER_DOWN_SETTING:
@@ -806,6 +872,16 @@ static int32_t msm_sensor_driver_get_dt_data(struct msm_sensor_ctrl_t *s_ctrl)
 	CDBG("%s qcom,mclk-23880000 = %d\n", __func__,
 		s_ctrl->set_mclk_23880000);
 
+	/*use dtsi get sensor name instead of board id string*/
+	if (of_property_read_string(of_node, "qcom,support-sensor-code",
+			&s_ctrl->support_sensor_code) < 0) {
+		s_ctrl->support_sensor_code = NULL;
+		pr_err("%s: don't define support sensor code\n",__func__);
+	}
+    else
+    {
+        pr_info("%s support-sensor-code = %s\n", __func__, s_ctrl->support_sensor_code);
+    }
 	return rc;
 
 FREE_VREG_DATA:
@@ -883,12 +959,63 @@ FREE_SENSOR_I2C_CLIENT:
 	kfree(s_ctrl->sensor_i2c_client);
 	return rc;
 }
+/*use dtsi get sensor name instead of board id string*/
+/*
+	get the back camera sensor code and the front camera
+	sensor code. only one sensor code for the back or the
+	front. we need get two sensor codes.
+*/
+int32_t msm_get_probe_sensor_codes(void *setting)
+{
+	int32_t i = 0, rc = 0;
+	struct msm_sensor_ctrl_t *s_ctrl = NULL;
+	int32_t index = 0, length = 0;
+
+    struct msm_support_sensor_codes_info *sensor_codes_info = (struct msm_support_sensor_codes_info *)setting;
+
+    if(!sensor_codes_info)
+        return -1;
+
+	for(i = 0; i<MAX_CAMERAS; i++)
+	{
+		s_ctrl = g_sctrl[i];
+		if(s_ctrl == NULL)
+		{
+			break;
+		}
+
+		if(!s_ctrl->support_sensor_code)
+		{
+			rc = -1;
+			pr_err("%s: don't support look up sensor code!\n",__func__);
+			break;
+		}
+
+		if(index >= MAX_SUPPORT_SENSOR_CODE_COUNT)
+		{
+			pr_err("%s: too many s_ctrl \n",__func__);
+			break;
+		}
+
+		length = strlen(s_ctrl->support_sensor_code);
+		if(length >= MAX_SENSOR_CODE_LENGTH)
+		{
+			length = MAX_SENSOR_CODE_LENGTH - 1;
+		}
+
+		memcpy(sensor_codes_info->sensor_code_list[index++],s_ctrl->support_sensor_code,sizeof(char)*length);
+		pr_info("%s: camera support sensor code: %s \n",__func__,s_ctrl->support_sensor_code);
+	}
+
+	return rc;
+}
 
 static int32_t msm_sensor_driver_platform_probe(struct platform_device *pdev)
 {
 	int32_t rc = 0;
 	struct msm_sensor_ctrl_t *s_ctrl = NULL;
-
+	struct v4l2_subdev *subdev_flash[1] = {NULL};
+	struct device_node *src_node = NULL;
 
 	/* Create sensor control structure */
 	s_ctrl = kzalloc(sizeof(*s_ctrl), GFP_KERNEL);
@@ -909,6 +1036,28 @@ static int32_t msm_sensor_driver_platform_probe(struct platform_device *pdev)
 		goto FREE_S_CTRL;
 	}
 
+	//check flash subdev id, don't care the value of "qcom,led-flash-src" in dtsi.
+	if(s_ctrl->of_node)
+	{
+		src_node = of_parse_phandle(s_ctrl->of_node, "qcom,led-flash-src", 0);
+		if (!src_node)
+		{
+			CDBG("%s:%d led-flash-src node NULL,do not config flash\n", __func__, __LINE__);
+		}
+		else
+		{
+			msm_sd_get_subdevs(subdev_flash,1,"msm_flash");
+			if(subdev_flash[0] != NULL)
+			{
+				uint32_t flash_subdev_id = 0;
+				v4l2_subdev_call(subdev_flash[0], core, ioctl,
+					VIDIOC_MSM_SENSOR_GET_SUBDEV_ID, &flash_subdev_id);
+				s_ctrl->sensordata->sensor_info->subdev_id[SUB_MODULE_LED_FLASH] = flash_subdev_id;
+				CDBG("%s: flash subdev id = %d \n",__func__,flash_subdev_id);
+			}
+		}
+	}
+
 	/* Fill platform device */
 	pdev->id = s_ctrl->id;
 	s_ctrl->pdev = pdev;
@@ -919,6 +1068,8 @@ static int32_t msm_sensor_driver_platform_probe(struct platform_device *pdev)
 	return rc;
 FREE_S_CTRL:
 	kfree(s_ctrl);
+	/* optimize camera print mipi packet and frame count log*/
+	s_ctrl = NULL;
 	return rc;
 }
 

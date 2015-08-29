@@ -110,7 +110,7 @@
 			cell-index = <0>;
 			compatible = "qcom,mdss-fb";
 			qcom,memblock-reserve = <0x83200000 0xfa0000>;
-			qcom,mdss-fb-splash-logo-enabled;
+			/*remove qcom logo when boot linux kernel*/
 		};
 
 		mdss_fb1: qcom,mdss_fb_wfd {
@@ -300,4 +300,5 @@
 };
 
 #include "dsi-panel-sim-video.dtsi"
-
+/* add default lcd dtsi to G760S*/
+#include "hw-default-lcd.dtsi"

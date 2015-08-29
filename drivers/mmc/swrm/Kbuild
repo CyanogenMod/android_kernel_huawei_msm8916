@@ -1,0 +1,3 @@
+obj-$(CONFIG_MMC_SWRM) += swrm.o
+swrm-objs:= swrm_main.o swrm_mmc_api.o
+

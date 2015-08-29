@@ -68,6 +68,10 @@
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
+#ifdef CONFIG_HUAWEI_KERNEL
+#define OTG_HOST_WAIT_TIME 10
+#endif
+
 MODULE_AUTHOR("Eric Youngdale");
 MODULE_DESCRIPTION("SCSI disk (sd) driver");
 MODULE_LICENSE("GPL");
@@ -1732,6 +1736,9 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 	unsigned int the_result;
 	struct scsi_sense_hdr sshdr;
 	int sense_valid = 0;
+#ifdef CONFIG_HUAWEI_KERNEL
+    int wait_ready_time = OTG_HOST_WAIT_TIME;
+#endif
 
 	spintime = 0;
 
@@ -1754,6 +1761,15 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 			 * doesn't have any media in it, don't bother
 			 * with any more polling.
 			 */
+#ifdef CONFIG_HUAWEI_KERNEL
+            if (NOT_READY == sshdr.sense_key && wait_ready_time > 0) {
+                /* Wait 1 second for next try */
+                msleep(1000);
+                wait_ready_time--;
+                continue;
+            }
+#endif
+
 			if (media_not_present(sdkp, &sshdr))
 				return;
 

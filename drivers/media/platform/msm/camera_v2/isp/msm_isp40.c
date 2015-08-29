@@ -27,7 +27,17 @@
 #ifdef CONFIG_MSM_ISP_DBG
 #define CDBG(fmt, args...) pr_err(fmt, ##args)
 #else
+#ifdef CONFIG_HUAWEI_KERNEL
+#define CDBG(fmt, args...)          \
+do{                                 \
+    if(huawei_cam_is_factory_mode())\
+    {                               \
+        pr_err(fmt, ##args);        \
+    }                               \
+}while(0)
+#else
 #define CDBG(fmt, args...) do { } while (0)
+#endif
 #endif
 
 /* STATS_SIZE (BE + BG + BF+ RS + CS + IHIST + BHIST ) = 392 */
@@ -48,6 +58,8 @@ static uint8_t stats_pingpong_offset_map[] = {
 	(VFE40_STATS_BASE(idx) + 0x4 * \
 	(~(ping_pong >> (stats_pingpong_offset_map[idx])) & 0x1))
 
+#define HW_MAX_SOF_LOG_NUM 5
+static int log_print_num = 0;
 #define VFE40_VBIF_CLKON                    0x4
 #define VFE40_VBIF_IN_RD_LIM_CONF0          0xB0
 #define VFE40_VBIF_IN_RD_LIM_CONF1          0xB4
@@ -425,6 +437,11 @@ static void msm_vfe40_process_camif_irq(struct vfe_device *vfe_dev,
 		return;
 
 	if (irq_status0 & (1 << 0)) {
+		if(log_print_num > 0)
+		{
+			log_print_num--;
+			pr_err("%s: SOF IRQ %d\n", __func__,log_print_num);
+		}
 		ISP_DBG("%s: SOF IRQ\n", __func__);
 		vfe_dev->hw_info->vfe_ops.core_ops.vbif_clear_counters(vfe_dev);
 		cnt = vfe_dev->axi_data.src_info[VFE_PIX_0].raw_stream_count;
@@ -692,6 +709,9 @@ static long msm_vfe40_reset_hardware(struct vfe_device *vfe_dev ,
 	} else {
 		msm_camera_io_w_mb(0x1EF, vfe_dev->vfe_base + 0xC);
 	}
+	pr_err("%s: \n",__func__);
+	//we print 5 times when camera stream on
+	log_print_num = HW_MAX_SOF_LOG_NUM;
 	return rc;
 }
 

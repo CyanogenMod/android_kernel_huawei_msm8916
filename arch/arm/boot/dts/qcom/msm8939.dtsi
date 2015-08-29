@@ -24,9 +24,8 @@
 	model = "Qualcomm Technologies, Inc. MSM8939";
 	compatible = "qcom,msm8939";
 	qcom,msm-id = <239 0>, <241 0>, <263 0>;
-
 	chosen {
-		bootargs = "boot_cpus=0,4,5,6,7";
+		bootargs = "boot_cpus=0";
 	};
 };
 
@@ -266,9 +265,9 @@
 			 <  998400 >,
 			 < 1113600 >;
 	};
-
+	/* Disable the cpu0 hotplug feature. */
 	qcom,msm-thermal {
-		qcom,core-control-mask = <0xFF>;
+		qcom,core-control-mask = <0xfe>;
 		qcom,freq-mitigation-control-mask = <0xFF>;
 	};
 

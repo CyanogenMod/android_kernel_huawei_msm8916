@@ -28,7 +28,7 @@
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
 #include "input-compat.h"
-
+#include <linux/log_jank.h>
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("Input core");
 MODULE_LICENSE("GPL");
@@ -428,6 +428,25 @@ void input_event(struct input_dev *dev,
 		spin_lock_irqsave(&dev->event_lock, flags);
 		input_handle_event(dev, type, code, value);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
+#ifdef CONFIG_LOG_JANK
+		if(EV_MSC == type)
+		{
+			if((code == MSC_SCAN)&&(!value))
+			{
+				pr_jank(JL_COVER_WAKE_LOCK,"%s#T:%5lu","JL_COVER_WAKE_LOCK",getrealtime());
+			}
+		}
+		else if(EV_ABS == type)
+		{
+			if(code == ABS_DISTANCE)
+			{
+				if(value)
+					pr_jank(JL_PROXIMITY_SENSOR_FAR, "%s#T:%5lu", "JL_PROXIMITY_SENSOR_FAR",getrealtime());
+				else
+					pr_jank(JL_PROXIMITY_SENSOR_NEAR, "%s#T:%5lu", "JL_PROXIMITY_SENSOR_NEAR",getrealtime());
+			}
+		}
+#endif
 	}
 }
 EXPORT_SYMBOL(input_event);

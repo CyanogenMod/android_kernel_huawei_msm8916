@@ -269,7 +269,12 @@ static struct bus_type subsys_bus_type = {
 
 static DEFINE_IDA(subsys_ida);
 
+#ifdef CONFIG_HUAWEI_KERNEL
+int enable_ramdumps;
+int subsystem_restart_requested = 0;
+#else
 static int enable_ramdumps;
+#endif
 module_param(enable_ramdumps, int, S_IRUGO | S_IWUSR);
 
 struct workqueue_struct *ssr_wq;
@@ -698,6 +703,10 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 	unsigned count;
 	unsigned long flags;
 
+#ifdef CONFIG_HUAWEI_KERNEL
+	int enable_ramdumps_old = 0;
+#endif
+
 	/*
 	 * It's OK to not take the registration lock at this point.
 	 * This is because the subsystem list inside the relevant
@@ -725,13 +734,21 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 
 	pr_debug("[%p]: Starting restart sequence for %s\n", current,
 			desc->name);
+
+#ifdef CONFIG_HUAWEI_KERNEL
+	/* disable subsystem ramdump if subsystem restart is requested */
+	if (subsystem_restart_requested) {
+		enable_ramdumps_old = enable_ramdumps;
+		enable_ramdumps = 0;
+	}
+#endif
+
 	notify_each_subsys_device(list, count, SUBSYS_BEFORE_SHUTDOWN, NULL);
 	for_each_subsys_device(list, count, NULL, subsystem_shutdown);
 	notify_each_subsys_device(list, count, SUBSYS_AFTER_SHUTDOWN, NULL);
 
 	notify_each_subsys_device(list, count, SUBSYS_RAMDUMP_NOTIFICATION,
-									NULL);
-
+							  NULL);
 	spin_lock_irqsave(&track->s_lock, flags);
 	track->p_state = SUBSYS_RESTARTING;
 	spin_unlock_irqrestore(&track->s_lock, flags);
@@ -742,6 +759,14 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 	notify_each_subsys_device(list, count, SUBSYS_BEFORE_POWERUP, NULL);
 	for_each_subsys_device(list, count, NULL, subsystem_powerup);
 	notify_each_subsys_device(list, count, SUBSYS_AFTER_POWERUP, NULL);
+
+#ifdef CONFIG_HUAWEI_KERNEL
+	/* restore subsystem ramdump switch */
+	if (subsystem_restart_requested) {
+		enable_ramdumps = enable_ramdumps_old;
+		subsystem_restart_requested = 0;
+	}
+#endif
 
 	pr_info("[%p]: Restart sequence for %s completed.\n",
 			current, desc->name);
@@ -778,6 +803,9 @@ static void __subsystem_restart_dev(struct subsys_device *dev)
 			__pm_stay_awake(&dev->ssr_wlock);
 			queue_work(ssr_wq, &dev->work);
 		} else {
+#ifdef CONFIG_HUAWEI_KERNEL
+			if (!subsystem_restart_requested)
+#endif
 			panic("Subsystem %s crashed during SSR!", name);
 		}
 	}

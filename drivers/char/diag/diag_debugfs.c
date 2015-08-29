@@ -70,6 +70,24 @@ static ssize_t diag_dbgfs_read_status(struct file *file, char __user *ubuf,
 		"DCI Modem in_busy_1: %d\n"
 		"Modem CMD in_busy_1: %d\n"
 		"Modem CMD in_busy_2: %d\n"
+#ifdef CONFIG_HUAWEI_FEATURE_DIAG_MDLOG
+		"Modem in_busy_file_1: %d\n"
+		"Modem in_busy_usb_1: %d\n"
+		"Modem in_busy_file_2: %d\n"
+		"Modem in_busy_usb_2: %d\n"
+		"LPASS in_busy_file_1: %d\n"
+		"LPASS in_busy_usb_1: %d\n"
+		"LPASS in_busy_file_2: %d\n"
+		"LPASS in_busy_usb_2: %d\n"
+		"RIVA in_busy_file_1: %d\n"
+		"RIVA in_busy_usb_1: %d\n"
+		"RIVA in_busy_file_2: %d\n"
+		"RIVA in_busy_usb_2: %d\n"
+		"Modem CMD in_busy_file_1: %d\n"
+		"Modem CMD in_busy_usb_1: %d\n"
+		"Modem CMD in_busy_file_2: %d\n"
+		"Modem CMD in_busy_usb_2: %d\n"
+#endif
 		"DCI CMD Modem in_busy_1: %d\n"
 		"Modem supports STM: %d\n"
 		"LPASS supports STM: %d\n"
@@ -110,6 +128,9 @@ static ssize_t diag_dbgfs_read_status(struct file *file, char __user *ubuf,
 		"Received Feature mask from LPASS: %d\n"
 		"Received Feature mask from WCNSS: %d\n"
 		"logging_mode: %d\n"
+#ifdef CONFIG_HUAWEI_FEATURE_DIAG_MDLOG
+		"mixed_qxdmlog: %d\n"
+#endif
 		"rsp_in_busy: %d\n",
 		driver->smd_data[MODEM_DATA].ch,
 		driver->smd_data[LPASS_DATA].ch,
@@ -140,6 +161,24 @@ static ssize_t diag_dbgfs_read_status(struct file *file, char __user *ubuf,
 		driver->smd_dci[MODEM_DATA].in_busy_1,
 		driver->smd_cmd[MODEM_DATA].in_busy_1,
 		driver->smd_cmd[MODEM_DATA].in_busy_2,
+#ifdef CONFIG_HUAWEI_FEATURE_DIAG_MDLOG
+		driver->smd_data[MODEM_DATA].in_busy_file_1,
+		driver->smd_data[MODEM_DATA].in_busy_usb_1,
+		driver->smd_data[MODEM_DATA].in_busy_file_2,
+		driver->smd_data[MODEM_DATA].in_busy_usb_2,
+		driver->smd_data[LPASS_DATA].in_busy_file_1,
+		driver->smd_data[LPASS_DATA].in_busy_usb_1,		
+		driver->smd_data[LPASS_DATA].in_busy_file_2,
+		driver->smd_data[LPASS_DATA].in_busy_usb_2,
+		driver->smd_data[WCNSS_DATA].in_busy_file_1,
+		driver->smd_data[WCNSS_DATA].in_busy_usb_1,
+		driver->smd_data[WCNSS_DATA].in_busy_file_2,
+		driver->smd_data[WCNSS_DATA].in_busy_usb_2,
+		driver->smd_cmd[MODEM_DATA].in_busy_file_1,
+		driver->smd_cmd[MODEM_DATA].in_busy_usb_1,
+		driver->smd_cmd[MODEM_DATA].in_busy_file_2,
+		driver->smd_cmd[MODEM_DATA].in_busy_usb_2,
+#endif
 		driver->smd_dci_cmd[MODEM_DATA].in_busy_1,
 		driver->peripheral_supports_stm[MODEM_DATA],
 		driver->peripheral_supports_stm[LPASS_DATA],
@@ -180,6 +219,9 @@ static ssize_t diag_dbgfs_read_status(struct file *file, char __user *ubuf,
 		driver->rcvd_feature_mask[LPASS_DATA],
 		driver->rcvd_feature_mask[WCNSS_DATA],
 		driver->logging_mode,
+#ifdef CONFIG_HUAWEI_FEATURE_DIAG_MDLOG
+		driver->mixed_qmdlog_flag,
+#endif
 		driver->rsp_buf_busy);
 
 #ifdef CONFIG_DIAG_OVER_USB

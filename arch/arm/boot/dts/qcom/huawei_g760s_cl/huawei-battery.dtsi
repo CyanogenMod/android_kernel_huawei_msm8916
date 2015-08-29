@@ -1,0 +1,159 @@
+/ {
+        qrd_batterydata: qcom,battery-data {
+                qcom,rpull-up-kohm = <68>;
+                qcom,vref-batt-therm = <1800000>;
+        };
+
+	maxim_batterydata: maxim,battery-data {
+		maxim,rpull-up-kohm = <68>;
+		maxim,vref-batt-therm = <1800000>;
+		#include "HB3748B4EBC_ATL_SCUD-4v35-3000mah.dtsi"
+		#include "HB3748B8EBC_LS_LS-4v35-3000mah.dtsi"
+		#include "HB3748B8EBC_SWD_SWD-4v35-3000mah.dtsi"
+	};
+};
+
+/*move some lines to bottom */
+
+
+&pm8916_bms {
+        status = "ok";
+        qcom,low-voltage-threshold = <3250000>;
+        qcom,battery-data = <&qrd_batterydata>;
+};
+
+&pm8916_chg {
+        status = "okay";
+        qcom,vddmax-mv = <4350>;
+        qcom,vddsafe-mv = <4380>;
+	qcom,use-other-charger;
+};
+
+&pm8916_mpps {
+	mpp@a300 {
+		qcom,mode = <4>; // QPNP_PIN_MODE_AIN
+		qcom,src-sel = <0>; // QPNP_PIN_SEL_FUNC_CONSTANT
+		qcom,ain-route = <3>; // QPNP_PIN_AIN_AMUX_CH8
+		qcom,master-en = <1>; // Enable features
+	};
+	mpp@a100 {
+		status = "ok";
+		qcom,mode = <4>; // QPNP_PIN_MODE_AIN
+		qcom,invert = <0>; //No Invert
+		qcom,output-type = <0>; //CMOS
+		qcom,src-sel = <0>; // QPNP_PIN_SEL_FUNC_CONSTANT
+		qcom,ain-route = <1>; // QPNP_PIN_AIN_AMUX_CH6 = 1 for MPP2
+		qcom,master-en = <1>; // Function constant
+	};
+};
+
+&pm8916_vadc {
+	cpu_mpp_number = <19>;
+	pa_mpp_number = <54>;
+
+	chan@13 {
+		label = "mpp4_div1";
+		reg = <0x13>;
+		qcom,decimation = <0>; //512 sampling rate
+		qcom,pre-div-channel-scaling = <0>; //1:1 scaling
+		qcom,calibration-type = "absolute"; //Use 625mV & 1.25V reference voltage
+		qcom,scale-function = <10>; //convert raw adc code to voltage
+		qcom,hw-settle-time = <2>; //200us
+		qcom,fast-avg-setup = <0>; //with only one average measurement
+	};
+
+	chan@36 {
+		qcom,scale-function = <10>;
+	};
+	chan@21 {
+		label = "mpp2_div3";
+		reg = <0x21>;
+		qcom,decimation = <0>; //512 sampling rate
+		qcom,pre-div-channel-scaling = <1>; // 1:3scale
+		qcom,calibration-type = "ratiometric"; //Use 625mV & 1.25V reference voltage
+		qcom,scale-function = <0>; //convert raw adc code to voltage
+		qcom,hw-settle-time = <2>; //200us
+		qcom,fast-avg-setup = <0>; //with only one average measurement
+	};
+};
+
+/*delete I2C configuration of BQ chipset */
+&soc {
+	i2c@78b8000 { /* BLSP1 QUP4 */
+		max77819-pmic@66 {
+			compatible = "maxim,max77819-pmic";
+			reg = <0x66>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <62 0x01>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&smb_int_default>;
+			interrupt-names = "max77819-intbar";
+			max77819,int-gpio = <&msm_gpio 62 0x01>;
+
+			charger_max77819: qcom,charger {
+				compatible = "maxim,max77819-charger";
+				psy_name = "ac";
+				ext_psy_name = "usb";
+				supplied_to = "battery";
+				chg_dcin_current_max = <1200000>;
+				chg_fast_current_max = <1200000>;
+				charge_termination_voltage = <4350000>;
+				topoff_timer = <40>;
+				topoff_current = <50000>;
+				charge_restart_threshold = <150000>;
+				enable_aicl;
+				aicl_detection_voltage = <4500000>;
+				aicl_reset_threshold = <100000>;
+			};
+			flash_max77819: qcom,led-flash {
+				compatible = "maxim,max77819-flash";
+				cell-index = <1>;
+				qcom,slave-id = <0x66 0x00 0x0011>;
+				label = "max77819_flash";
+				qcom,flash-type = <1>;
+				pinctrl-names = "cam_flash_default","cam_flash_suspend";
+				pinctrl-0 = <&max77819_flash_en_default>;
+				pinctrl-1 = <&max77819_flash_en_suspend>;
+				gpios = <&msm_gpio 86 0>, <&msm_gpio 31 0>;
+				qcom,enable_pinctrl;
+				qcom,gpio-flash-en = <0>;
+				qcom,gpio-flash-now = <1>;
+				qcom,gpio-req-tbl-num = <0 1>;
+				qcom,gpio-req-tbl-flags = <0 0>;
+				qcom,gpio-req-tbl-label = "FLASH_EN", "FLASH_NOW";
+			};
+		};
+
+		max77819-periph@48 {
+			compatible = "maxim,max77819-periph";
+			reg = <0x48>;
+
+			backlight {
+				compatible = "maxim,max77819-backlight";
+			};
+
+			vibrator {
+				compatible = "maxim,max77819-vibrator";
+				current = <30>;
+			};
+		};
+		max17048_fgauge: max17048@36 {
+			compatible = "maxim,max17048";
+			reg = <0x36>;
+			qcom,maxim-bms-vadc = <&pm8916_vadc>;
+			maxim,irq-soc-alarm-gpio = <&msm_gpio 109 0>;
+			maxim,alert-soc = <2>;
+			maxim,reset-mvlolt = <2800>;
+			maxim,cutoff_batt_mv = <3450>;
+			maxim,cutoff_batt_soc = <2>;
+			maxim,bad_batt_mv = <3350>;
+		};
+	};
+};
+&charger_max77819 {
+	maxim,battery-data = <&maxim_batterydata>;
+};
+
+&max17048_fgauge {
+	maxim,battery-data = <&maxim_batterydata>;
+};

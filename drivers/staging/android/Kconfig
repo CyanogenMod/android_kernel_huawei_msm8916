@@ -122,6 +122,12 @@ config SW_SYNC_USER
 	  Provides a user space API to the sw sync object.
 	  *WARNING* improper use of this can result in deadlocking kernel
 	  drivers from userspace.
+config LOG_JANK
+    bool "log jank feature support"
+    default n
+    help
+      Say Y here to enable log jank feature support. This allows
+      user to send log to remote server by net.
 
 source "drivers/staging/android/ion/Kconfig"
 

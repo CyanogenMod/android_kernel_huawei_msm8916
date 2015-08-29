@@ -1,0 +1,9 @@
+ / {
+        huawei_fac_info {
+                  compatible = "huawei,hw_fac_info";
+                  fac,product_name = "HUAWEI G619-TL";
+                  fac,hardware_ver = "HL0MSM8916MT0";
+                  fac,software_ver = "MSM8916_G619-TL_VA";
+                  status = "ok";
+        };
+};

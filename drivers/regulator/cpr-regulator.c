@@ -293,6 +293,13 @@ struct cpr_regulator {
 #define CPR_DEBUG_MASK_IRQ	BIT(0)
 #define CPR_DEBUG_MASK_API	BIT(1)
 
+#ifdef CONFIG_HUAWEI_KERNEL
+/*disable the cpr debug print default*/
+static int cpr_debug_enable = 0;
+#else
+static int cpr_debug_enable = CPR_DEBUG_MASK_IRQ;
+#endif
+
 static int cpr_debug_enable;
 #if defined(CONFIG_DEBUG_FS)
 static struct dentry *cpr_debugfs_base;

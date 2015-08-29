@@ -1,0 +1,9 @@
+ / {
+        huawei_fac_info {
+                  compatible = "huawei,hw_fac_info";
+                  fac,product_name = "G620-A1";
+                  fac,hardware_ver = "HL1G620A1M";
+                  fac,software_ver = "MSM8916_G620-A1_VA";
+                  status = "ok";
+        };
+};

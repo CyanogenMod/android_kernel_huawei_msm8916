@@ -1,0 +1,9 @@
+ / {
+        huawei_fac_info {
+                  compatible = "huawei,hw_fac_info";
+                  fac,product_name = "HUAWEI G760S-UL";
+                  fac,hardware_ver = "HL2G760STLM";
+                  fac,software_ver = "MSM8939_G760S-UL00_VA";
+                  status = "ok";
+        };
+};

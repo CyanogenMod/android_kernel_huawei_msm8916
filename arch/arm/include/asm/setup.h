@@ -16,6 +16,12 @@
 
 #include <uapi/asm/setup.h>
 
+#ifdef CONFIG_HUAWEI_KERNEL
+/* runmode : factory , normal */
+#define ATAG_RUNMODE_FLAG  0x54410102
+
+bool is_runmode_factory(void);
+#endif
 
 #define __tag __used __attribute__((__section__(".taglist.init")))
 #define __tagtable(tag, fn) \

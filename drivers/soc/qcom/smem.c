@@ -29,6 +29,9 @@
 
 #include <soc/qcom/smem.h>
 
+#ifdef CONFIG_HUAWEI_KERNEL
+#include <soc/qcom/subsystem_restart.h>
+#endif
 
 #include "smem_private.h"
 
@@ -1021,7 +1024,6 @@ static int restart_notifier_cb(struct notifier_block *this,
 	default:
 		break;
 	}
-
 	return NOTIFY_DONE;
 }
 

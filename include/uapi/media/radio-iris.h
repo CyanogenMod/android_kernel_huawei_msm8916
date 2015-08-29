@@ -739,11 +739,12 @@ enum iris_xfr_t {
 };
 
 #undef FMDBG
-#ifdef FM_DEBUG
-#define FMDBG(fmt, args...) pr_info("iris_radio: " fmt, ##args)
-#else
-#define FMDBG(fmt, args...)
-#endif
+#define FMDBG(fmt, args...) \
+        do \
+        { \
+                if (KERNEL_HWFLOW) \
+                pr_info("iris_radio: " fmt, ##args); \
+        }while(0)
 
 #undef FMDERR
 #define FMDERR(fmt, args...) pr_err("iris_radio: " fmt, ##args)

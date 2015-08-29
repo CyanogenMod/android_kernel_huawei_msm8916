@@ -36,6 +36,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/sensors.h>
+#ifdef CONFIG_HUAWEI_HW_DEV_DCT
+#include <linux/hw_dev_dec.h>
+#endif
 
 #define APDS993X_HAL_USE_SYS_ENABLE
 
@@ -2600,6 +2603,19 @@ static int apds993x_probe(struct i2c_client *client,
 		pr_err("%s: Unable to register to sensors class: %d\n",
 			       __func__, err);
 		goto exit_unregister_als_class;
+	}
+	set_sensors_list(L_SENSOR + P_SENSOR);
+#ifdef CONFIG_HUAWEI_HW_DEV_DCT
+	set_hw_dev_flag(DEV_I2C_APS);
+	set_hw_dev_flag(DEV_I2C_L_SENSOR);
+#endif
+	err = set_sensor_input(PS, data->input_dev_ps->dev.kobj.name);
+	if (err) {
+		pr_err("%s set_sensor_input PS failed\n", __func__);
+	}
+	err = set_sensor_input(ALS, data->input_dev_ps->dev.kobj.name);
+	if (err) {
+		pr_err("%s set_sensor_input ALS failed\n", __func__);
 	}
 
 	if (pdata->power_on)

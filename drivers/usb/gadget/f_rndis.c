@@ -894,8 +894,25 @@ rndis_unbind(struct usb_configuration *c, struct usb_function *f)
 /* Some controllers can't support RNDIS ... */
 static inline bool can_support_rndis(struct usb_configuration *c)
 {
+    /* requirement of us/tracfone/us, do not support rndis.
+     * requirement of consumercellular/us, do not support rndis.
+     */
+#ifdef CONFIG_HUAWEI_USB
+    if((!strcmp(usb_parameter.country_name, COUNTRY_US) && !strcmp(usb_parameter.vender_name, VENDOR_TRACFONE))
+    || (!strcmp(usb_parameter.country_name, COUNTRY_US) && !strcmp(usb_parameter.vender_name, VENDOR_CC)))
+    {        
+        printk("%s: customization requirement, rndis not supported\n", __func__);
+        return false; 
+    }
+    else
+    {
+        printk("%s: general product, rndis supported\n", __func__);
+        return true;
+    }
+#else
 	/* everything else is *presumably* fine */
 	return true;
+#endif
 }
 
 int

@@ -1,0 +1,6 @@
+&soc {
+        huawei,huawei-polling-support {
+                compatible = "huawei-polling-support";
+                huawei,support-polling;
+        };
+     };

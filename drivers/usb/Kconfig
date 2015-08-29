@@ -138,4 +138,10 @@ source "drivers/usb/phy/Kconfig"
 
 source "drivers/usb/gadget/Kconfig"
 
+config HUAWEI_USB
+	depends on HUAWEI_KERNEL
+	bool "Use Huawei usb code"
+	default n
+	---help---
+	  use Huawei usb feature
 endif # USB_SUPPORT

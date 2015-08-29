@@ -26,10 +26,16 @@
 #include "mdss_panel.h"
 #include "mdss_dsi.h"
 #include "mdss_debug.h"
-
+/* a requirement about the production line test the leaky current of C199S LCD  */
+#ifdef CONFIG_HUAWEI_LCD
+bool enable_PT_test = 0;
+module_param_named(enable_PT_test, enable_PT_test, bool, S_IRUGO | S_IWUSR);
+#endif
+#include <linux/hw_lcd_common.h>
 static int mdss_dsi_pinctrl_set_state(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 					bool active);
-
+extern int get_offline_cpu(void);
+extern unsigned int cpufreq_get(unsigned int cpu);
 static int mdss_dsi_regulator_init(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -108,8 +114,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 		 * to be done irresepective of whether the lp11_init flag is
 		 * set or not.
 		 */
-		if (pdata->panel_info.panel_power_on ||
-			!pdata->panel_info.mipi.lp11_init) {
+		if (!pdata->panel_info.mipi.lp11_init) {
 			if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
 				pr_debug("reset enable: pinctrl not enabled\n");
 
@@ -127,8 +132,11 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 					__func__, ret);
 			goto error;
 		}
+		/* don't use pinctrl mode to ctrl gpio */
+#ifndef CONFIG_HUAWEI_LCD
 		if (mdss_dsi_pinctrl_set_state(ctrl_pdata, false))
 			pr_debug("reset disable: pinctrl not enabled\n");
+#endif
 
 		for (i = DSI_MAX_PM - 1; i >= 0; i--) {
 			/*
@@ -379,7 +387,10 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata)
 	}
 
 	pdata->panel_info.panel_power_on = 0;
-
+/* remove APR web LCD report log information  */
+#ifdef CONFIG_HUAWEI_DSM
+	lcd_pwr_status.panel_power_on = pdata->panel_info.panel_power_on;
+#endif
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
@@ -753,7 +764,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	struct mdss_panel_info *pinfo;
 	struct mipi_panel_info *mipi;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
-
+	unsigned long timeout = jiffies;
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
@@ -792,8 +803,13 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 				return ret;
 			}
 			pdata->panel_info.panel_power_on = 0;
+/* remove APR web LCD report log information  */
+#ifdef CONFIG_HUAWEI_DSM
+		lcd_pwr_status.panel_power_on |= pdata->panel_info.panel_power_on;
+#endif
 			return ret;
 		}
+/*delete set lcd_pwr_status.panel_power_on here*/
 		mdss_dsi_phy_sw_reset((ctrl_pdata->ctrl_base));
 		mdss_dsi_phy_init(pdata);
 		mdss_dsi_clk_ctrl(ctrl_pdata, DSI_BUS_CLKS, 0);
@@ -804,23 +820,38 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		mdss_dsi_ctrl_setup(pdata);
 		mdss_dsi_sw_reset(pdata, false);
 		mdss_dsi_host_init(pdata);
+		/* add for timeout print log */
+		LCD_LOG_INFO("%s: dsi_on_time = %u,offlinecpu = %d,curfreq = %d\n",
+				__func__,jiffies_to_msecs(jiffies-timeout),get_offline_cpu(),cpufreq_get(0));
 	} else {
 		/*After ULPS exit do DSI reset once*/
 		pr_debug("%s: ULPS during suspend\n", __func__);
 		mdss_dsi_sw_reset(pdata, true);
 	}
+	
+	/* add for timeout print log */
+	LCD_LOG_INFO("%s: dsi_on_time = %u,offlinecpu = %d,curfreq = %d\n",
+			__func__,jiffies_to_msecs(jiffies-timeout),get_offline_cpu(),cpufreq_get(0));
 
 	/*
 	 * Issue hardware reset line after enabling the DSI clocks and data
 	 * data lanes for LP11 init
 	 */
 	if (mipi->lp11_init) {
+	/* don't use pinctrl mode to ctrl gpio */
+	#ifndef CONFIG_HUAWEI_LCD
 		if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
 			pr_debug("reset enable: pinctrl not enabled\n");
+	#endif
+
 		mdss_dsi_panel_reset(pdata, 1);
 	}
 	pdata->panel_info.panel_power_on = 1;
-
+/*set lcd_pwr_status.panel_power_on state*/
+/* remove APR web LCD report log information  */
+#ifdef CONFIG_HUAWEI_DSM
+	lcd_pwr_status.panel_power_on |= pdata->panel_info.panel_power_on;
+#endif
 	if (mipi->init_delay)
 		usleep(mipi->init_delay);
 
@@ -1417,7 +1448,13 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 	const char *ctrl_name;
 	bool cmd_cfg_cont_splash = true;
 	struct mdss_panel_cfg *pan_cfg = NULL;
-
+#ifdef CONFIG_HUAWEI_LCD
+	struct dsm_dev dsm_lcd = {
+		.name = "dsm_lcd",
+		.fops = NULL,
+		.buff_size = 1024,
+	};
+#endif
 	if (!mdss_is_ready()) {
 		pr_err("%s: MDP not probed yet!\n", __func__);
 		return -EPROBE_DEFER;
@@ -1525,6 +1562,11 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 	}
 
 	pr_debug("%s: Dsi Ctrl->%d initialized\n", __func__, index);
+#ifdef CONFIG_HUAWEI_LCD
+	if (!lcd_dclient) {
+		lcd_dclient = dsm_register_client(&dsm_lcd);
+	}
+#endif
 	return 0;
 
 error_pan_node:
@@ -1798,6 +1840,17 @@ int dsi_panel_device_register(struct device_node *pan_node,
 	if (!gpio_is_valid(ctrl_pdata->rst_gpio))
 		pr_err("%s:%d, reset gpio not specified\n",
 						__func__, __LINE__);
+/* revert vsp & vsn modify */
+#ifdef CONFIG_HUAWEI_LCD
+	else
+	{
+		rc = gpio_request(ctrl_pdata->rst_gpio, "disp_rst_n");
+		if (rc) {
+			pr_err("request reset gpio failed, rc=%d\n",
+				rc);
+		}
+	}
+#endif
 
 	if (pinfo->mode_gpio_state != MODE_GPIO_NOT_VALID) {
 
@@ -1867,6 +1920,9 @@ int dsi_panel_device_register(struct device_node *pan_node,
 
 	if (pinfo->cont_splash_enabled) {
 		pinfo->panel_power_on = 1;
+#ifdef CONFIG_HUAWEI_LCD
+		lcd_pwr_status.panel_power_on |= pinfo->panel_power_on;
+#endif
 		rc = mdss_dsi_panel_power_on(&(ctrl_pdata->panel_data), 1);
 		if (rc) {
 			pr_err("%s: Panel power on failed\n", __func__);
@@ -1878,6 +1934,9 @@ int dsi_panel_device_register(struct device_node *pan_node,
 			(CTRL_STATE_PANEL_INIT | CTRL_STATE_MDP_ACTIVE);
 	} else {
 		pinfo->panel_power_on = 0;
+#ifdef CONFIG_HUAWEI_LCD
+		lcd_pwr_status.panel_power_on |= pinfo->panel_power_on;
+#endif
 	}
 
 	rc = mdss_register_panel(ctrl_pdev, &(ctrl_pdata->panel_data));

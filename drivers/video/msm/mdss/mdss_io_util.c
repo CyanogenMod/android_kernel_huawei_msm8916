@@ -15,8 +15,34 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/mdss_io_util.h>
+/* a requirement about the production line test the leaky current of C199S LCD  */
+#ifdef CONFIG_HUAWEI_KERNEL
+#include <linux/regulator/driver.h>
+enum lcd_run_mode_enum{
+	LCD_RUN_MODE_INIT = 0,
+	LCD_RUN_MODE_FACTORY,
+	LCD_RUN_MODE_NORMAL,
+};
+extern char *saved_command_line;
+extern bool enable_PT_test;
 
+struct regulator {
+	struct device *dev;
+	struct list_head list;
+	unsigned int always_on:1;
+	unsigned int bypass:1;
+	int uA_load;
+	int min_uV;
+	int max_uV;
+	int enabled;
+	char *supply_name;
+	struct device_attribute dev_attr;
+	struct regulator_dev *rdev;
+	struct dentry *debugfs;
+};
+#endif
 #define MAX_I2C_CMDS  16
+
 void dss_reg_w(struct dss_io_data *io, u32 offset, u32 value, u32 debug)
 {
 	u32 in_val;
@@ -208,6 +234,35 @@ vreg_get_fail:
 } /* msm_dss_config_vreg */
 EXPORT_SYMBOL(msm_dss_config_vreg);
 
+/* a requirement about the production line test the leaky current of C199S LCD  */
+#ifdef CONFIG_HUAWEI_KERNEL
+static bool huawei_lcd_is_factory_mode(void)
+{
+	static enum lcd_run_mode_enum lcd_run_mode = LCD_RUN_MODE_INIT;
+
+	if(LCD_RUN_MODE_INIT == lcd_run_mode)
+	{
+		lcd_run_mode = LCD_RUN_MODE_NORMAL;
+		if(saved_command_line != NULL)
+		{
+			if(strstr(saved_command_line, "androidboot.huawei_swtype=factory") != NULL)
+			{
+				lcd_run_mode = LCD_RUN_MODE_FACTORY;
+			}
+		}
+		pr_warn("%s lcd run mode is %d\n", __func__, lcd_run_mode);
+	}
+
+	if(LCD_RUN_MODE_FACTORY == lcd_run_mode)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+#endif
 int msm_dss_enable_vreg(struct dss_vreg *in_vreg, int num_vreg, int enable)
 {
 	int i = 0, rc = 0;
@@ -241,16 +296,40 @@ int msm_dss_enable_vreg(struct dss_vreg *in_vreg, int num_vreg, int enable)
 			}
 		}
 	} else {
-		for (i = num_vreg-1; i >= 0; i--)
-			if (regulator_is_enabled(in_vreg[i].vreg)) {
-				if (in_vreg[i].pre_off_sleep)
-					msleep(in_vreg[i].pre_off_sleep);
-				regulator_set_optimum_mode(in_vreg[i].vreg,
-					in_vreg[i].disable_load);
-				regulator_disable(in_vreg[i].vreg);
-				if (in_vreg[i].post_off_sleep)
-					msleep(in_vreg[i].post_off_sleep);
+		/* a requirement about the production line test the leaky current of C199S LCD  */
+		for (i = num_vreg-1; i >= 0; i--){
+		if(huawei_lcd_is_factory_mode()){
+		if(enable_PT_test)
+		{
+				if(!strcmp(in_vreg[i].vreg_name, "vsp") || !strcmp(in_vreg[i].vreg_name, "vsn"))
+					continue;
+		}
+		else
+		{
+			if(!strcmp(in_vreg[i].vreg_name, "vsp") || !strcmp(in_vreg[i].vreg_name, "vsn"))
+			{
+				 if(in_vreg[i].vreg->rdev->use_count > 1)
+					in_vreg[i].vreg->rdev->use_count = 1;
 			}
+		}
+	}
+		#ifdef CONFIG_HUAWEI_LCD
+			if(strcmp(in_vreg[i].vreg_name, "vddio") && strcmp(in_vreg[i].vreg_name, "vdd"))
+			{
+		#endif
+				if (regulator_is_enabled(in_vreg[i].vreg)) {
+					if (in_vreg[i].pre_off_sleep)
+						msleep(in_vreg[i].pre_off_sleep);
+					regulator_set_optimum_mode(in_vreg[i].vreg,
+						in_vreg[i].disable_load);
+					regulator_disable(in_vreg[i].vreg);
+					if (in_vreg[i].post_off_sleep)
+						msleep(in_vreg[i].post_off_sleep);
+				}
+		#ifdef CONFIG_HUAWEI_LCD
+			}
+		#endif
+		}
 	}
 	return rc;
 

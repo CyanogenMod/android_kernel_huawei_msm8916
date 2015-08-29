@@ -47,6 +47,10 @@ struct mmc_ioc_cmd {
 
 #define MMC_IOC_CMD _IOWR(MMC_BLOCK_MAJOR, 0, struct mmc_ioc_cmd)
 
+#ifdef CONFIG_HW_SYSTEM_WR_PROTECT
+#define MMC_IOC_WP_CMD _IOWR(MMC_BLOCK_MAJOR, 0, char)
+#endif
+
 /**
  * There are four request types that are applicable for rpmb accesses- two
  * under read category and two under write. They are
@@ -107,5 +111,9 @@ struct mmc_ioc_rpmb {
  * is enforced per ioctl call.  For larger data transfers, use the normal
  * block device operations.
  */
+#ifdef CONFIG_MMC_FFU
+#define MMC_IOC_MAX_BYTES  (512L * 1024)
+#else
 #define MMC_IOC_MAX_BYTES  (512L * 256)
+#endif
 #endif /* LINUX_MMC_IOCTL_H */

@@ -264,6 +264,9 @@ enum qpnp_adc_scale_fn_type {
 	SCALE_QRD_SKUAA_BATT_THERM,
 	SCALE_SMB_BATT_THERM,
 	SCALE_QRD_SKUG_BATT_THERM,
+#ifdef CONFIG_HUAWEI_KERNEL
+	SCALE_HUAWEI_PA_THERM,
+#endif
 	SCALE_QRD_SKUH_BATT_THERM,
 	SCALE_NONE,
 };
@@ -1208,6 +1211,28 @@ int32_t qpnp_adc_scale_qrd_skug_batt_therm(struct qpnp_vadc_chip *dev,
 			const struct qpnp_adc_properties *adc_prop,
 			const struct qpnp_vadc_chan_properties *chan_prop,
 			struct qpnp_vadc_result *chan_rslt);
+
+/**
+ * qpnp_adc_scale_huawei_pa_therm() - Scales the pre-calibrated digital output
+ *		of an ADC to the ADC reference and compensates for the
+ *		gain and offset. Returns the temperature in decidegC.
+ * @dev:	Structure device for qpnp vadc
+ * @adc_code:	pre-calibrated digital ouput of the ADC.
+ * @adc_prop:	adc properties of the pm8xxx adc such as bit resolution,
+ *		reference voltage.
+ * @chan_prop:	individual channel properties to compensate the i/p scaling,
+ *		slope and offset.
+ * @chan_rslt:	physical result to be stored.
+ */
+#ifdef CONFIG_HUAWEI_KERNEL
+int32_t qpnp_adc_scale_huawei_pa_therm(struct qpnp_vadc_chip *dev,
+			int32_t adc_code,
+			const struct qpnp_adc_properties *adc_prop,
+			const struct qpnp_vadc_chan_properties *chan_prop,
+			struct qpnp_vadc_result *chan_rslt);
+
+#endif
+
 /**
  * qpnp_adc_scale_qrd_skuh_batt_therm() - Scales the pre-calibrated digital output
  *		of an ADC to the ADC reference and compensates for the

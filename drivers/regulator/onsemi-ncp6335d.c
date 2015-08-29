@@ -73,8 +73,8 @@ struct ncp6335d_info {
 
 	struct dentry *debug_root;
 };
-
-static int delay_array[] = {10, 20, 30, 40, 50};
+/* reduce the probe time of dcdc ic */
+static int delay_array[] = {10, 20, 30, 30};
 
 static int ncp6335x_read(struct ncp6335d_info *dd, unsigned int reg,
 						unsigned int *val)

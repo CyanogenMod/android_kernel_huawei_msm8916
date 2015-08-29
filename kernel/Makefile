@@ -110,6 +110,9 @@ obj-$(CONFIG_PADATA) += padata.o
 obj-$(CONFIG_CRASH_DUMP) += crash_dump.o
 obj-$(CONFIG_JUMP_LABEL) += jump_label.o
 obj-$(CONFIG_CONTEXT_TRACKING) += context_tracking.o
+obj-$(CONFIG_HW_FEATURE_STORAGE_DIAGNOSE_LOG) += store_log.o
+
+obj-$(CONFIG_MMC) += swrm_int.o
 
 $(obj)/configs.o: $(obj)/config_data.h
 

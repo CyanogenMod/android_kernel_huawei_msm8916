@@ -71,6 +71,11 @@ enum usb_mode_type {
 	USB_OTG,
 };
 
+ enum usb_otg_chargerIC {
+    OTG_CHGIC_NONE = 0,
+    OTG_CHGIC_BQ24152 = 1,
+    OTG_CHGIC_MAX77819 = 2,
+};
 /**
  * OTG control
  *
@@ -105,6 +110,7 @@ enum msm_usb_phy_type {
 #define IDEV_CHG_MAX	1500
 #define IDEV_CHG_MIN	500
 #define IUNIT		100
+//reuse the default USB current limit
 
 #define IDEV_ACA_CHG_MAX	1500
 #define IDEV_ACA_CHG_LIMIT	500
@@ -260,6 +266,7 @@ struct msm_otg_platform_data {
 	enum otg_control_type otg_control;
 	enum usb_mode_type default_mode;
 	enum msm_usb_phy_type phy_type;
+    enum usb_otg_chargerIC chargerIC;
 	int pmic_id_irq;
 	unsigned int mpm_otgsessvld_int;
 	unsigned int mpm_dpshv_int;

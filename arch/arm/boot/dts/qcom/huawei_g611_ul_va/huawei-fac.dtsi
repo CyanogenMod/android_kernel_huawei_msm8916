@@ -1,0 +1,9 @@
+ / {
+        huawei_fac_info {
+                  compatible = "huawei,hw_fac_info";
+                  fac,product_name = "HUAWEI G611-UL";
+                  fac,hardware_ver = "HL0MSM8916MT0";
+                  fac,software_ver = "MSM8916_G611-UL_VA";
+                  status = "ok";
+        };
+};

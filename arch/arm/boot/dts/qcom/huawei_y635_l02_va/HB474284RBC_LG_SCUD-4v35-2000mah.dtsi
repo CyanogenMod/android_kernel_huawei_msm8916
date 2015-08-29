@@ -1,0 +1,130 @@
+/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+qcom,qrd-4v35-2000mAh-lg-scud-data {
+	qcom,fcc-mah = <2000>;
+	qcom,default-rbatt-mohm = <129>;
+	qcom,rbatt-capacitive-mohm = <50>;
+	qcom,flat-ocv-threshold-uv = <3800000>;
+	qcom,max-voltage-uv = <4350000>;
+	qcom,v-cutoff-uv = <3400000>;
+	qcom,chg-term-ua = <100000>;
+	qcom,batt-id-kohm = <470>;
+	qcom,battery-type = "HB474284RBC_LG_SCUD";
+
+	qcom,warm-bat-decidegc = <420>;
+	qcom,warm-bat-mv = <4100>;
+	qcom,ibatmax-warm-ma = <800>;
+
+	qcom,cool-bat-decidegc = <100>;
+	qcom,cool-bat-mv = <4350>;
+	qcom,ibatmax-cool-ma = <600>;
+
+	qcom,hot-bat-decidegc = <520>;
+	qcom,cold-bat-decidegc = <0>;
+	qcom,rbatt-sf-lut {
+		qcom,lut-col-legend = <(-20) 0 25 40 60>;
+		qcom,lut-row-legend = <100 95 90 85 80>,
+				<75 70 65 60 55>,
+				<50 45 40 35 30>,
+				<25 20 16 13 11>,
+				<10 9 8 7 6>,
+				<5 4 3 2 1>,
+				<0>;
+		qcom,lut-data = <1329 310 100 79 72>, 
+						<1330 310 100 79 72>, 
+						<1409 316 103 81 74>, 
+						<1716 323 107 85 76>, 
+						<1577 330 113 88 78>, 
+						<1431 350 119 91 81>, 
+						<1417 336 127 96 84>, 
+						<1403 322 136 102 87>, 
+						<1443 319 139 111 91>, 
+						<1509 313 118 104 90>, 
+						<1591 312 106 84 74>, 
+						<1694 316 108 85 76>, 
+						<1805 328 110 88 81>, 
+						<2009 357 113 93 85>, 
+						<2420 402 119 91 81>, 
+						<2998 459 125 90 76>, 
+						<3792 512 129 91 78>, 
+						<4674 560 131 91 79>, 
+						<5068 588 129 90 76>, 
+						<5847 627 135 95 79>, 
+						<6602 656 140 98 81>, 
+						<7626 687 147 101 83>, 
+						<8974 727 156 104 84>, 
+						<11084 769 164 108 85>, 
+						<15304 820 173 109 83>, 
+						<25541 878 172 105 84>, 
+						<45505 960 178 108 84>, 
+						<70783 1086 194 114 88>, 
+						<90711 1359 219 123 93>, 
+						<92392 2016 271 141 116>,
+						<62318 6070 7467 7223 6197>;
+	};
+
+	qcom,fcc-temp-lut {
+		qcom,lut-col-legend = <(-20) 0 25 40 60>;
+		qcom,lut-data = <2060 2078 2078 2076 2068>;
+	};
+
+	qcom,pc-temp-ocv-lut {
+		qcom,lut-col-legend = <(-20) 0 25 40 60>;
+		qcom,lut-row-legend = <100 95 90 85 80>,
+				<75 70 65 60 55>,
+				<50 45 40 35 30>,
+				<25 20 16 13 11>,
+				<10 9 8 7 6>,
+				<5 4 3 2 1>,
+				<0>;
+		qcom,lut-data = <4338 4336 4330 4326 4318>, 
+						<4236 4258 4260 4258 4252>, 
+						<4166 4197 4202 4200 4194>, 
+						<4104 4142 4146 4144 4139>, 
+						<4050 4088 4094 4092 4086>, 
+						<3958 4037 4044 4042 4038>, 
+						<3912 3982 3998 3998 3993>, 
+						<3867 3934 3958 3958 3954>, 
+						<3842 3894 3917 3920 3916>, 
+						<3826 3857 3870 3876 3874>, 
+						<3810 3827 3836 3836 3834>, 
+						<3795 3804 3812 3812 3811>, 
+						<3778 3787 3794 3794 3792>, 
+						<3762 3776 3780 3779 3777>, 
+						<3742 3766 3769 3765 3758>, 
+						<3718 3750 3758 3750 3735>, 
+						<3688 3725 3737 3728 3714>, 
+						<3654 3704 3706 3698 3686>, 
+						<3618 3691 3681 3674 3662>, 
+						<3582 3683 3677 3670 3659>, 
+						<3555 3679 3675 3668 3657>, 
+						<3523 3675 3673 3666 3655>, 
+						<3484 3670 3670 3664 3652>, 
+						<3432 3663 3666 3660 3647>, 
+						<3372 3650 3656 3647 3632>, 
+						<3310 3624 3628 3616 3598>, 
+						<3258 3584 3580 3566 3549>, 
+						<3211 3528 3516 3502 3480>, 
+						<3170 3442 3433 3415 3391>, 
+						<3114 3308 3294 3284 3254>, 
+						<3000 3000 3000 3000 3000>;
+	};
+	qcom,ibat-acc-lut {
+		qcom,lut-col-legend = <(-20) 0 25>;
+		qcom,lut-row-legend = <0 250 500 1000>;
+		qcom,lut-data = <1926 2078 2078>,
+                        <390 1884 2022>,
+                        <201 1570 1998>,
+                        <26 1178 1926>;
+};
+};
