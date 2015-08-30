@@ -20,9 +20,6 @@
 
 #include <linux/usb/composite.h>
 #include <asm/unaligned.h>
-#ifdef CONFIG_HUAWEI_USB_DSM
-#include <linux/usb/dsm_usb.h>
-#endif
 
 /*
  * The code in this file is utility code, used to build a gadget driver
@@ -1215,19 +1212,9 @@ EXPORT_SYMBOL_GPL(usb_string_ids_n);
 static void composite_setup_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	if (req->status || req->actual != req->length)
-//#ifndef CONFIG_HUAWEI_USB_DSM      //delete usb radar 21305
-#if 1
 		DBG((struct usb_composite_dev *) ep->driver_data,
 				"setup complete --> %d, %d/%d\n",
 				req->status, req->actual, req->length);
-#else
-	{
-		DSM_USB_LOG(DSM_USB_DEVICE, NULL, DSM_USB_DEVICE_EMU__ERR,
-				"setup complete --> %d, %d/%d\n",
-				req->status, req->actual, req->length);
-
-	}
-#endif
 }
 
 /*
@@ -1782,11 +1769,7 @@ composite_resume(struct usb_gadget *gadget)
 {
 	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
 	struct usb_function		*f;
-#ifdef CONFIG_HUAWEI_KERNEL
-	u16				maxpower;
-#else
 	u8				maxpower;
-#endif
 
 	/* REVISIT:  should we have config level
 	 * suspend/resume callbacks?

@@ -479,19 +479,6 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 		goto out;
 	}
 
-    /*
-     * curlun->blksize remains the old value when switch from cdrom to udisk
-     * so use the same blksie in cdrom and udisk
-     */
-#ifdef CONFIG_HUAWEI_USB
-	if (inode->i_bdev) {
-		blksize = bdev_logical_block_size(inode->i_bdev);
-		blkbits = blksize_bits(blksize);
-	} else {
-		blksize = 512;
-		blkbits = 9;
-	}
-#else
 	if (curlun->cdrom) {
 		blksize = 2048;
 		blkbits = 11;
@@ -502,12 +489,9 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 		blksize = 512;
 		blkbits = 9;
 	}
-#endif
 
 	num_sectors = size >> blkbits; /* File size in logic-block-size blocks */
 	min_sectors = 1;
-
-#ifndef CONFIG_HUAWEI_USB
 	if (curlun->cdrom) {
 		min_sectors = 300;	/* Smallest track is 300 frames */
 		if (num_sectors >= 256*60*75) {
@@ -517,8 +501,6 @@ static int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 					(int) num_sectors);
 		}
 	}
-#endif
-
 	if (num_sectors < min_sectors) {
 		LINFO(curlun, "file too small: %s\n", filename);
 		rc = -ETOOSMALL;
@@ -723,11 +705,6 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
 	struct rw_semaphore	*filesem = dev_get_drvdata(dev);
 	int		rc = 0;
-    
-    /* for easy to debug ,add a log here */
-#ifdef CONFIG_HUAWEI_USB
-    printk("%s: %s buf = %s\n", __func__, dev_name(dev), buf); 
-#endif
 
 
 #if !defined(CONFIG_USB_G_ANDROID)
@@ -746,20 +723,6 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 
 	/* Load new medium */
 	down_write(filesem);
-#ifdef CONFIG_HUAWEI_USB
-    if(curlun->cdrom && fsg_lun_is_open(curlun)) {
-        printk("%s: is cdrom and already opened, ignore\n", __func__);
-	}else if (count > 0 && buf[0]) {
-		/* fsg_lun_open() will close existing file if any. */
-		rc = fsg_lun_open(curlun, buf);
-		if (rc == 0)
-			curlun->unit_attention_data =
-					SS_NOT_READY_TO_READY_TRANSITION;
-	} else if (fsg_lun_is_open(curlun)) {
-		fsg_lun_close(curlun);
-		curlun->unit_attention_data = SS_MEDIUM_NOT_PRESENT;
-	}
-#else
 	if (count > 0 && buf[0]) {
 		/* fsg_lun_open() will close existing file if any. */
 		rc = fsg_lun_open(curlun, buf);
@@ -770,7 +733,6 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 		fsg_lun_close(curlun);
 		curlun->unit_attention_data = SS_MEDIUM_NOT_PRESENT;
 	}
-#endif
 	up_write(filesem);
 	return (rc < 0 ? rc : count);
 }
