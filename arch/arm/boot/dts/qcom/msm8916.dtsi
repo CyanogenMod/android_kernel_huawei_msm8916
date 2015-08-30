@@ -1496,6 +1496,20 @@
 			compatible = "qcom,msm-imem-pil";
 			reg = <0x94c 200>;
 		};
+		crash_magic_addr@a94 {
+			compatible = "qcom,msm-imem-crash_magic_addr";
+			reg = <0xa94 4>;
+		};
+
+		crash_len_addr@a98 {
+			compatible = "qcom,msm-imem-crash_len_addr";
+			reg = <0xa98 4>;
+		};
+
+		hw_reset_magic_addr@a9c {
+			compatible = "qcom,msm-imem-hw_reset_magic_addr";
+			reg = <0xa9c 4>;
+		};
 	};
 
 	qcom,venus@1de0000 {
