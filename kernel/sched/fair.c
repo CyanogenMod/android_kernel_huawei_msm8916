@@ -1327,6 +1327,7 @@ unsigned int __read_mostly sysctl_sched_downmigrate_pct = 60;
  * Tasks whose nice value is > sysctl_sched_upmigrate_min_nice are never
  * considered as "big" tasks.
  */
+static int __read_mostly sched_upmigrate_min_nice = 15;
 int __read_mostly sysctl_sched_upmigrate_min_nice = 15;
 
 /*
@@ -1378,6 +1379,8 @@ void set_hmp_defaults(void)
 	sched_init_task_load_windows =
 		div64_u64((u64)sysctl_sched_init_task_load_pct *
 			  (u64)sched_ravg_window, 100);
+
+	sched_upmigrate_min_nice = sysctl_sched_upmigrate_min_nice;
 }
 
 /*
@@ -1402,7 +1405,7 @@ static inline int is_big_task(struct task_struct *p)
 	int nice = TASK_NICE(p);
 
 	/* Todo: Provide cgroup-based control as well? */
-	if (nice > sysctl_sched_upmigrate_min_nice)
+	if (nice > sched_upmigrate_min_nice)
 		return 0;
 
 	load = scale_load_to_cpu(load, task_cpu(p));
@@ -1582,7 +1585,7 @@ static int task_will_fit(struct task_struct *p, int cpu)
 			return 1;
 	} else {
 		/* Todo: Provide cgroup-based control as well? */
-		if (nice > sysctl_sched_upmigrate_min_nice)
+		if (nice > sched_upmigrate_min_nice)
 			return 1;
 
 		load = scale_load_to_cpu(task_load(p), cpu);
@@ -2004,17 +2007,38 @@ void post_big_small_task_count_change(const struct cpumask *cpus)
 
 DEFINE_MUTEX(policy_mutex);
 
+#ifdef CONFIG_SCHED_FREQ_INPUT
+static inline int invalid_value_freq_input(unsigned int *data)
+{
+	if (data == &sysctl_sched_migration_fixup)
+		return !(*data == 0 || *data == 1);
+
+	if (data == &sysctl_sched_freq_account_wait_time)
+		return !(*data == 0 || *data == 1);
+
+	return 0;
+}
+#else
+static inline int invalid_value_freq_input(unsigned int *data)
+{
+	return 0;
+}
+#endif
+
 static inline int invalid_value(unsigned int *data)
 {
-	int val = *data;
+	unsigned int val = *data;
 
 	if (data == &sysctl_sched_ravg_hist_size)
 		return (val < 2 || val > RAVG_HIST_SIZE_MAX);
 
 	if (data == &sysctl_sched_window_stats_policy)
-		return (val >= WINDOW_STATS_INVALID_POLICY);
+		return val >= WINDOW_STATS_INVALID_POLICY;
 
-	return 0;
+	if (data == &sysctl_sched_account_wait_time)
+		return !(val == 0 || val == 1);
+
+	return invalid_value_freq_input(data);
 }
 
 /*
@@ -2064,18 +2088,42 @@ int sched_hmp_proc_update_handler(struct ctl_table *table, int write,
 		loff_t *ppos)
 {
 	int ret;
+	unsigned int old_val;
 	unsigned int *data = (unsigned int *)table->data;
-	unsigned int old_val = *data;
+	int update_min_nice = 0;
+
+	mutex_lock(&policy_mutex);
+
+	old_val = *data;
 
 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret || !write || !sched_enable_hmp)
-		return ret;
 
-	if ((sysctl_sched_downmigrate_pct > sysctl_sched_upmigrate_pct) ||
-		(sysctl_sched_mostly_idle_load_pct >
-			sysctl_sched_spill_load_pct) || *data > 100) {
+	if (ret || !write || !sched_enable_hmp)
+		goto done;
+
+	if (write && (old_val == *data))
+		goto done;
+
+	if (data == (unsigned int *)&sysctl_sched_upmigrate_min_nice)
+		update_min_nice = 1;
+
+	if (update_min_nice) {
+		if ((*(int *)data) < -20 || (*(int *)data) > 19) {
 			*data = old_val;
-			return -EINVAL;
+			ret = -EINVAL;
+			goto done;
+		}
+		update_min_nice = 1;
+	} else {
+		/* all tunables other than min_nice are in percentage */
+		if ((sysctl_sched_downmigrate_pct >
+		    sysctl_sched_upmigrate_pct) ||
+		    (sysctl_sched_mostly_idle_load_pct >
+		    sysctl_sched_spill_load_pct) || *data > 100) {
+			*data = old_val;
+			ret = -EINVAL;
+			goto done;
+		}
 	}
 
 	/*
@@ -2086,23 +2134,23 @@ int sched_hmp_proc_update_handler(struct ctl_table *table, int write,
 	 * includes taking runqueue lock of all online cpus and re-initiatizing
 	 * their big/small counter values based on changed criteria.
 	 */
-	if ((*data != old_val) &&
-		(data == &sysctl_sched_upmigrate_pct ||
-		data == &sysctl_sched_small_task_pct)) {
-			get_online_cpus();
-			pre_big_small_task_count_change(cpu_online_mask);
+	if ((data == &sysctl_sched_upmigrate_pct ||
+	     data == &sysctl_sched_small_task_pct || update_min_nice)) {
+		get_online_cpus();
+		pre_big_small_task_count_change(cpu_online_mask);
 	}
 
 	set_hmp_defaults();
 
-	if ((*data != old_val) &&
-		(data == &sysctl_sched_upmigrate_pct ||
-		data == &sysctl_sched_small_task_pct)) {
-			post_big_small_task_count_change(cpu_online_mask);
-			put_online_cpus();
+	if ((data == &sysctl_sched_upmigrate_pct ||
+	     data == &sysctl_sched_small_task_pct || update_min_nice)) {
+		post_big_small_task_count_change(cpu_online_mask);
+		put_online_cpus();
 	}
 
-	return 0;
+done:
+	mutex_unlock(&policy_mutex);
+	return ret;
 }
 
 /*
@@ -2209,9 +2257,8 @@ static inline int migration_needed(struct rq *rq, struct task_struct *p)
 		return 0;
 
 	/* Todo: cgroup-based control? */
-	if (nice > sysctl_sched_upmigrate_min_nice &&
-		rq->capacity > min_capacity)
-			return MOVE_TO_LITTLE_CPU;
+	if (nice > sched_upmigrate_min_nice && rq->capacity > min_capacity)
+		return MOVE_TO_LITTLE_CPU;
 
 	if (!task_will_fit(p, cpu_of(rq)))
 		return MOVE_TO_BIG_CPU;
