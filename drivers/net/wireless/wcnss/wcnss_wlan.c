@@ -66,16 +66,6 @@
 #define WCNSS_CONFIG_UNSPECIFIED (-1)
 #define UINT32_MAX (0xFFFFFFFFU)
 
-#ifdef CONFIG_HUAWEI_WIFI
-
-
-int wlan_log_debug_mask = WLAN_ERROR;
-module_param_named(wlan_log_debug_mask, wlan_log_debug_mask, int, 0664);
-EXPORT_SYMBOL(wlan_log_debug_mask);
-
-
-#endif
-
 static int has_48mhz_xo = WCNSS_CONFIG_UNSPECIFIED;
 module_param(has_48mhz_xo, int, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(has_48mhz_xo, "Is an external 48 MHz XO present");
@@ -209,6 +199,7 @@ static DEFINE_SPINLOCK(reg_spinlock);
 #define	WCNSS_BUILD_VER_REQ           (WCNSS_CTRL_MSG_START + 9)
 #define	WCNSS_BUILD_VER_RSP           (WCNSS_CTRL_MSG_START + 10)
 #define WCNSS_CBC_COMPLETE_IND		(WCNSS_CTRL_MSG_START + 12)
+
 /* max 20mhz channel count */
 #define WCNSS_MAX_CH_NUM			45
 #define WCNSS_MAX_PIL_RETRY			2
@@ -249,15 +240,6 @@ static struct wcnss_pmic_dump wcnss_pmic_reg_dump[] = {
 	{"LVS1", 0x060},
 };
 
-#ifdef CONFIG_HUAWEI_WIFI
-#define HW_NVBIN_FILE "wlan/prima/WCNSS_hw_wlan_nv.bin"
-#define NVBIN_FILE_3660B "wlan/prima/WCNSS_hw_wlan_nv_3660b.bin"
-#define WLAN_CHIP_QUALCOMM_WCN3660B   "2.4"
-#define WLAN_MAX_CONF_INFO_LEN 128
-#define QUALCOMM_WCN_CALDATA_FORMAT    "../wifi/WCNSS_hw_wlan_nv"
-extern char *get_wifi_device_type(void);
-const void *get_hw_wifi_pubfile_id(void);
-#endif
 static int wcnss_notif_cb(struct notifier_block *this, unsigned long code,
 				void *ss_handle);
 
@@ -436,102 +418,6 @@ static struct {
 	int pc_disabled;
 	struct delayed_work wcnss_pm_qos_del_req;
 } *penv = NULL;
-
-#ifdef CONFIG_HUAWEI_DSM
-static struct dsm_dev wifi_dsm_info = {
-    .name = DSM_WIFI_MOD_NAME,
-    .fops = NULL,
-    .buff_size = DSM_WIFI_BUF_SIZE,
-};
-
-static struct dsm_client *wifi_dclient = NULL;
-
-int wifi_dsm_register(void)
-{
-    if (NULL != wifi_dclient)
-    {
-        printk(KERN_INFO "wifi_dclient had been register!\n");
-        return 0;
-    }
-
-    wifi_dclient = dsm_register_client(&wifi_dsm_info);
-    if(NULL == wifi_dclient)
-    {
-        printk(KERN_ERR "wifi_dclient register failed!\n");
-    }
-
-    return 0;
-}
-EXPORT_SYMBOL(wifi_dsm_register);
-
-int wifi_dsm_report_num(int dsm_err_no, char *err_msg, int err_code)
-{
-    int err = 0;
-
-    if(NULL == wifi_dclient)
-    {
-        printk(KERN_ERR "%s wifi_dclient did not register!\n", __func__);
-        return 0;
-    }
-
-    err = dsm_client_ocuppy(wifi_dclient);
-    if(0 != err)
-    {
-        printk(KERN_ERR "%s user buffer is busy!\n", __func__);
-        return 0;
-    }
-
-    printk(KERN_ERR "%s user buffer apply successed, dsm_err_no=%d, err_code=%d!\n",
-        __func__, dsm_err_no, err_code);
-
-    err = dsm_client_record(wifi_dclient, "err_msg:%s;err_code:%d;\n",err_msg,err_code);
-    dsm_client_notify(wifi_dclient, dsm_err_no);
-
-    return 0;
-}
-EXPORT_SYMBOL(wifi_dsm_report_num);
-
-int wifi_dsm_report_info(int error_no, void *log, int size)
-{
-    int err = 0;
-    int rsize = 0;
-
-    if(NULL == wifi_dclient)
-    {
-        printk(KERN_ERR "%s wifi_dclient did not register!\n", __func__);
-        return 0;
-    }
-
-    if((error_no < DSM_WIFI_ERR) || (error_no > DSM_WIFI_ROOT_NOT_RIGHT_ERR) || (NULL == log) || (size < 0))
-    {
-        printk(KERN_ERR "%s input param error!\n", __func__);
-        return 0;
-    }
-
-    err = dsm_client_ocuppy(wifi_dclient);
-    if(0 != err)
-    {
-        printk(KERN_ERR "%s user buffer is busy!\n", __func__);
-        return 0;
-    }
-
-    if(size > DSM_WIFI_BUF_SIZE)
-    {
-        rsize = DSM_WIFI_BUF_SIZE;
-    }
-    else
-    {
-        rsize = size;
-    }
-    err = dsm_client_copy(wifi_dclient, log, rsize);
-
-    dsm_client_notify(wifi_dclient, error_no);
-
-    return 0;
-}
-EXPORT_SYMBOL(wifi_dsm_report_info);
-/*delete dsm related definition outside the CONFIG_HUAWEI_DSM macro*/
-#endif
 
 static ssize_t wcnss_wlan_macaddr_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -1362,10 +1248,6 @@ wcnss_pronto_gpios_config(struct platform_device *pdev, bool enable)
 	int i, j;
 	int WCNSS_WLAN_NUM_GPIOS = 5;
 
-#ifdef CONFIG_HUAWEI_WIFI
-    wlan_log_err("wcnss: %s enter;\n", __func__);
-#endif
-
 	/* Use Pinctrl to configure 5 wire GPIOs */
 	rc = wcnss_pinctrl_init(pdev);
 	if (rc) {
@@ -1394,10 +1276,6 @@ gpio_probe:
 		} else
 			gpio_free(gpio);
 	}
-
-#ifdef CONFIG_HUAWEI_WIFI
-	wlan_log_err("wcnss: %s exit,rc:%d;line:%d;\n", __func__,rc,__LINE__);
-#endif
 	return rc;
 
 fail:
@@ -1405,9 +1283,6 @@ fail:
 		int gpio = of_get_gpio(pdev->dev.of_node, i);
 		gpio_free(gpio);
 	}
-#ifdef CONFIG_HUAWEI_WIFI
-	wlan_log_err("wcnss: %s exit,rc:%d;line:%d;\n", __func__,rc,__LINE__);
-#endif
 	return rc;
 }
 
@@ -1416,10 +1291,6 @@ wcnss_gpios_config(struct resource *gpios_5wire, bool enable)
 {
 	int i, j;
 	int rc = 0;
-
-#ifdef CONFIG_HUAWEI_WIFI
-    wlan_log_err("wcnss: %s enter;\n", __func__);
-#endif
 
 	for (i = gpios_5wire->start; i <= gpios_5wire->end; i++) {
 		if (enable) {
@@ -1431,17 +1302,12 @@ wcnss_gpios_config(struct resource *gpios_5wire, bool enable)
 		} else
 			gpio_free(i);
 	}
-#ifdef CONFIG_HUAWEI_WIFI
-	wlan_log_err("wcnss: %s exit,rc:%d;line:%d;\n", __func__,rc,__LINE__);
-#endif
+
 	return rc;
 
 fail:
 	for (j = i-1; j >= gpios_5wire->start; j--)
 		gpio_free(j);
-#ifdef CONFIG_HUAWEI_WIFI
-	wlan_log_err("wcnss: %s exit,rc:%d;line:%d;\n", __func__,rc,__LINE__);
-#endif
 	return rc;
 }
 
@@ -1549,6 +1415,7 @@ int wcnss_device_ready(void)
 	return 0;
 }
 EXPORT_SYMBOL(wcnss_device_ready);
+
 int wcnss_cbc_complete(void)
 {
 	if (penv && penv->pdev && penv->is_cbc_done &&
@@ -1557,6 +1424,7 @@ int wcnss_cbc_complete(void)
 	return 0;
 }
 EXPORT_SYMBOL(wcnss_cbc_complete);
+
 int wcnss_device_is_shutdown(void)
 {
 	if (penv && penv->is_shutdown)
@@ -2250,47 +2118,9 @@ static void wcnss_nvbin_dnld(void)
 	const struct firmware *nv = NULL;
 	struct device *dev = &penv->pdev->dev;
 
-#ifdef CONFIG_HUAWEI_WIFI
-	char *wifi_device_type = NULL;
-	char *wifi_pubfile_id = NULL;
-	char nvbin_path[WLAN_MAX_CONF_INFO_LEN] = {0};
-	wifi_device_type = get_wifi_device_type();
-	wifi_pubfile_id = (char *)get_hw_wifi_pubfile_id();
-#endif
-
 	down_read(&wcnss_pm_sem);
-/*wcn3660b use the diff nvbin file*/
-#ifdef CONFIG_HUAWEI_WIFI
-	snprintf(nvbin_path,sizeof(nvbin_path), "%s_%s.bin", QUALCOMM_WCN_CALDATA_FORMAT, wifi_pubfile_id);
-	ret = request_firmware(&nv, nvbin_path, dev);
-	if (ret || !nv || !nv->data || !nv->size)
-	{
-	    if(0 == strncmp(wifi_device_type, WLAN_CHIP_QUALCOMM_WCN3660B, strlen(WLAN_CHIP_QUALCOMM_WCN3660B)))
-	    {
-	        ret = request_firmware(&nv, NVBIN_FILE_3660B, dev);
-	        wlan_log_err("wcnss: %s: firmware_path %s\n",__func__, NVBIN_FILE_3660B);
-	    }
-	    else
-	    {
-	        ret = request_firmware(&nv, HW_NVBIN_FILE, dev);
-	        if (ret || !nv || !nv->data || !nv->size)
-	        {
-	            ret = request_firmware(&nv, NVBIN_FILE, dev);
-	            wlan_log_err("wcnss: %s: firmware_path %s\n",__func__, NVBIN_FILE);
-	        }
-	        else
-	        {
-	            wlan_log_err("wcnss: %s: firmware_path %s\n",__func__, HW_NVBIN_FILE);
-	        }
-	    }
-	}
-	else
-	{
-	    wlan_log_err("wcnss: %s: firmware_path %s\n",__func__, nvbin_path);
-	}
-#else
+
 	ret = request_firmware(&nv, NVBIN_FILE, dev);
-#endif
 
 	if (ret || !nv || !nv->data || !nv->size) {
 		pr_err("wcnss: %s: request_firmware failed for %s\n",
@@ -2492,7 +2322,7 @@ static void wcnss_nvbin_dnld_main(struct work_struct *worker)
 	if (!FW_CALDATA_CAPABLE())
 		goto nv_download;
 
-	if (!penv->fw_cal_available && 0
+	if (!penv->fw_cal_available && WCNSS_CONFIG_UNSPECIFIED
 		!= has_calibrated_data && !penv->user_cal_available) {
 		while (!penv->user_cal_available && retry++ < 5)
 			msleep(500);
@@ -2628,9 +2458,6 @@ wcnss_trigger_config(struct platform_device *pdev)
 	int pil_retry = 0;
 	int has_pronto_hw = of_property_read_bool(pdev->dev.of_node,
 							"qcom,has-pronto-hw");
-#ifdef CONFIG_HUAWEI_WIFI
-	wlan_log_err("wcnss: %s:enter;has_48mhz_xo:%d;\n", __func__,has_48mhz_xo);
-#endif
 
 	is_pronto_vt = of_property_read_bool(pdev->dev.of_node,
 							"qcom,is-pronto-vt");
@@ -2654,16 +2481,7 @@ wcnss_trigger_config(struct platform_device *pdev)
 		} else {
 			has_48mhz_xo = pdata->has_48mhz_xo;
 		}
-/*add parameters has_48mhz_xo logs */
-#ifdef CONFIG_HUAWEI_WIFI
-		wlan_log_err("wcnss: %s:set has_48mhz_xo:%d;\n", __func__,has_48mhz_xo);
-#endif
 	}
-
-#ifdef CONFIG_HUAWEI_WIFI
-	wlan_log_err("wcnss: %s:has_48mhz_xo:%d;\n", __func__,has_48mhz_xo);
-#endif
-
 	penv->wcnss_hw_type = (has_pronto_hw) ? WCNSS_PRONTO_HW : WCNSS_RIVA_HW;
 	penv->wlan_config.use_48mhz_xo = has_48mhz_xo;
 	penv->wlan_config.is_pronto_vt = is_pronto_vt;
@@ -2968,19 +2786,9 @@ wcnss_trigger_config(struct platform_device *pdev)
 			ret = PTR_ERR(penv->pil);
 			wcnss_disable_pc_add_req();
 			wcnss_pronto_log_debug_regs();
-#ifdef CONFIG_HUAWEI_DSM
-			/*inorder to avoid the abnormity raise frequently,we just raise the abnormity at the
-			first time when it occurs*/
-			if(pil_retry == 0)
-			{
-			    dev_err(&pdev->dev, "The wcnss load failed at the first time.\n");
-				wifi_dsm_report_num(DSM_WIFI_FAIL_LOADFIRMWARE_ERR,"firmware load failed",ret);
-			}
-#endif
 		}
 	} while (pil_retry++ < WCNSS_MAX_PIL_RETRY && IS_ERR(penv->pil));
 
-	/*After WCNSS_MAX_PIL_RETRY, PIL still failure, reset wcnss*/
 	if (IS_ERR(penv->pil)) {
 		wcnss_reset_intr();
 		if (penv->wcnss_notif_hdle)
@@ -3009,9 +2817,6 @@ fail_res:
 fail_gpio_res:
 	wcnss_disable_pc_remove_req();
 	penv = NULL;
-#ifdef CONFIG_HUAWEI_WIFI
-	wlan_log_err("wcnss: %s exit,line:%d\n", __func__,__LINE__);
-#endif
 	return ret;
 }
 
@@ -3203,10 +3008,6 @@ wcnss_wlan_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
-#ifdef CONFIG_HUAWEI_WIFI
-	wlan_log_err("wcnss: %s enter;\n", __func__);
-#endif
-
 	/* verify we haven't been called more than once */
 	if (penv) {
 		dev_err(&pdev->dev, "cannot handle multiple devices.\n");
@@ -3295,9 +3096,7 @@ static struct platform_driver wcnss_wlan_driver = {
 static int __init wcnss_wlan_init(void)
 {
 	int ret = 0;
-#ifdef CONFIG_HUAWEI_DSM
-    wifi_dsm_register();
-#endif
+
 	platform_driver_register(&wcnss_wlan_driver);
 	platform_driver_register(&wcnss_wlan_ctrl_driver);
 	platform_driver_register(&wcnss_ctrl_driver);
@@ -3313,9 +3112,6 @@ static int __init wcnss_wlan_init(void)
 
 static void __exit wcnss_wlan_exit(void)
 {
-#ifdef CONFIG_HUAWEI_DSM
-    dsm_unregister_client(wifi_dclient,&wifi_dsm_info);
-#endif
 	if (penv) {
 		if (penv->pil)
 			subsystem_put(penv->pil);
