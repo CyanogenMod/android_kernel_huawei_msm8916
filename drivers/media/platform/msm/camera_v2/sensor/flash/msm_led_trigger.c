@@ -15,7 +15,6 @@
 
 #include <linux/module.h>
 #include "msm_led_flash.h"
-#include "hw_camera_log.h"
 
 #define FLASH_NAME "camera-led-flash"
 
@@ -53,7 +52,7 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 	struct msm_camera_led_cfg_t *cfg = (struct msm_camera_led_cfg_t *)data;
 	uint32_t i;
 	uint32_t curr_l, max_curr_l;
-	hw_camera_log_info("%s: called led_state %d\n",__func__, cfg->cfgtype);
+	CDBG("called led_state %d\n", cfg->cfgtype);
 
 	if (!fctrl) {
 		pr_err("failed\n");
@@ -80,7 +79,6 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 				pr_debug("LED current clamped to %d\n",
 					curr_l);
 			}
-			hw_camera_log_info("%s: low_curr_l = %d\n", __func__, curr_l);
 			led_trigger_event(fctrl->torch_trigger,
 				curr_l);
 		}
@@ -100,7 +98,6 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 					pr_debug("LED current clamped to %d\n",
 						curr_l);
 				}
-				hw_camera_log_info("%s: high_curr_l = %d\n", __func__, curr_l);
 				led_trigger_event(fctrl->flash_trigger[i],
 					curr_l);
 			}
@@ -208,7 +205,6 @@ static int32_t msm_led_trigger_probe(struct platform_device *pdev)
 				rc_1 = of_property_read_u32(flash_src_node,
 					"qcom,max-current",
 					&fctrl.flash_max_current[i]);
-				hw_camera_log_info("%s: flash_op_current = %d, flash_max_current=%d \n",__func__, fctrl.flash_op_current[i], fctrl.flash_max_current[i]);
 				if ((rc < 0) || (rc_1 < 0)) {
 					pr_err("current: read failed\n");
 					of_node_put(flash_src_node);
@@ -260,7 +256,6 @@ static int32_t msm_led_trigger_probe(struct platform_device *pdev)
 				rc_1 = of_property_read_u32(flash_src_node,
 					"qcom,max-current",
 					&fctrl.torch_max_current);
-				hw_camera_log_info("%s: torch_op_current = %d, torch_max_current=%d \n",__func__, fctrl.torch_op_current, fctrl.torch_max_current);
 
 				if ((rc < 0) || (rc_1 < 0)) {
 					pr_err("current: read failed\n");

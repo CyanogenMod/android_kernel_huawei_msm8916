@@ -1,4 +1,16 @@
-
+/*******************************************************************
+  Copyright (C), 1988-1999, Huawei Tech. Co., Ltd.
+  File name         : sensor_otp_imx328_sunny_p13n10a.c
+  Version           : Initial Draft
+  Date              : 2014/08/11
+  Description       : this file contains the functions to detect and read
+                      imx328_sunny camera's OTP memory info.
+  Function List     :
+            imx328_sunny_p13n10a_otp_func
+  History           :
+  1.Date          : 2014/08/11
+    Modification  : Created File
+********************************************************************/
 #include <media/msm_cam_sensor.h>
 #include "msm_cci.h"
 #include "msm_sensor.h"
@@ -45,7 +57,6 @@
 #define IMX328_DIG_GAIN_R_REG_L      (0x0211)
 #define IMX328_DIG_GAIN_B_REG_H      (0x0212)
 #define IMX328_DIG_GAIN_B_REG_L      (0x0213)
-#define IMX328_OTP_VCM_OFFSET_VALUE    100
 
 typedef struct {
     uint32_t rgain;
@@ -292,19 +303,7 @@ static bool imx328_otp_read_vcm(struct msm_sensor_ctrl_t *s_ctrl)
         imx328_otp_flag |= IMX328_OTP_VCM_READ;
         imx328_otp.vcm_start = vcm_start;
         imx328_otp.vcm_end = vcm_end;
-	if (0 > (int)(imx328_otp.vcm_start - IMX328_OTP_VCM_OFFSET_VALUE))
-	{
-		pr_info("%s, imx328_otp.vcm_start = 0x%x\n", __func__,imx328_otp.vcm_start);
-		imx328_otp.vcm_start = 0;
-	}
-	else
-	{
-		imx328_otp.vcm_start -= IMX328_OTP_VCM_OFFSET_VALUE;
-	}
-
-        imx328_otp.vcm_end += IMX328_OTP_VCM_OFFSET_VALUE;
         pr_info("%s vcm_start=0x%x, vcm_end=0x%x \n",__func__, imx328_otp.vcm_start,imx328_otp.vcm_end);
-
     } else {
         //Abnormal branch deal
         imx328_otp.vcm_start = 0;
@@ -471,14 +470,6 @@ static void imx328_otp_set_awb(struct msm_sensor_ctrl_t *s_ctrl)
     pr_info("%s set sensor digital r_gain: %d, b_gain: %d, g_gain: %d\n",__func__,r_gain,b_gain,g_gain);
 }
 
-static void imx328_otp_update_vcm(struct msm_sensor_ctrl_t * s_ctrl)
-{
-	s_ctrl->afc_otp_info.starting_dac = imx328_otp.vcm_start;
-	s_ctrl->afc_otp_info.infinity_dac = imx328_otp.vcm_start;
-	s_ctrl->afc_otp_info.macro_dac = imx328_otp.vcm_end;
-}
-
-
 /*
  **************************************************************************
  * FunctionName: imx328_set_otp_to_sensor;
@@ -494,7 +485,6 @@ static void imx328_set_otp_to_sensor(struct msm_sensor_ctrl_t * s_ctrl)
     uint8_t otpflag = imx328_otp_get_flag();
     if (( otpflag&IMX328_OTP_FAIL_FLAG) != IMX328_OTP_FAIL_FLAG){
         imx328_otp_set_awb(s_ctrl);
-	imx328_otp_update_vcm(s_ctrl);
     }
     return;
 }

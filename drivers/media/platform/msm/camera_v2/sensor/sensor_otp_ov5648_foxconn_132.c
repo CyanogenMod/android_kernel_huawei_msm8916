@@ -1,4 +1,15 @@
-
+/************************************************************
+  Copyright (C), 1988-1999, Huawei Tech. Co., Ltd.
+  FileName: sensor_otp_ov5648_foxconn_132.c
+  Version :Initial Draft
+  Date: 2014/06/13
+  Description:    this file contion several functions to detect otp_ov5648 properties
+  Version:         Initial Draft
+  History:
+   History        :
+   1.Date        : 2014/06/13
+   Modification : Created function
+***********************************************************/
 
 //#define HW_CMR_LOGSWC 0   //file log switch set 0 off,default is 1 on
 #define HW_CMR_LOG_TAG "sensor_otp_ov5648_foxconn_132"
@@ -6,14 +17,6 @@
 #include <linux/hw_camera_common.h>
 #include "msm_sensor.h"
 #include "sensor_otp_common_if.h"
-#undef CMR_LOGD
-#ifndef CMR_LOGD
-#define CMR_LOGD(...)\
-    do{\
-        if (KERNEL_HWFLOW && HW_CMR_LOGSWC)\
-            printk(KERN_DEBUG"D/[HWCamera] "HW_CMR_LOG_TAG": " __VA_ARGS__);\
-    }while(0)
-#endif
 
 
 struct ov5648_foxconn_132_otp_struct {

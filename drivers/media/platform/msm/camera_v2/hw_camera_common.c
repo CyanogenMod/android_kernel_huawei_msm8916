@@ -1,7 +1,6 @@
 /*************************************************
 Copyright . Huawei Technologies Co., Ltd. 1998-2014. All rights reserved.
 File name:  hw_camera_common.c
-Author:     yanhuiwen
 ID£º        00283550
 Version:    Initial Draft
 Date:       2014/07/26

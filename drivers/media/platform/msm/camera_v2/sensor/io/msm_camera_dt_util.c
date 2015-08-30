@@ -512,8 +512,7 @@ int msm_camera_get_dt_power_setting_data(struct device_node *of_node,
 		CDBG("%s power_setting[%d].delay = %d\n", __func__,
 			i, ps[i].delay);
 	}
-	// move free array memory after get power down setting
-	//kfree(array);
+	kfree(array);
 
 	size = *power_setting_size;
 
@@ -526,7 +525,7 @@ int msm_camera_get_dt_power_setting_data(struct device_node *of_node,
 	if (!power_info->power_down_setting) {
 		pr_err("%s failed %d\n", __func__, __LINE__);
 		rc = -ENOMEM;
-		goto ERROR2;
+		goto ERROR1;
 	}
 
 	memcpy(power_info->power_down_setting,
@@ -534,28 +533,6 @@ int msm_camera_get_dt_power_setting_data(struct device_node *of_node,
 
 	power_info->power_down_setting_size = size;
 
-    //get dtsi power down setting
-	rc = of_property_read_u32_array(of_node, "qcom,cam-power-down-seq-cfg-val",
-		array, count);
-	if (rc < 0) {
-		rc = 0; //if get power down seq error, return normal,Compatibility with other projects
-		pr_err("%s failed %d\n", __func__, __LINE__);
-	}
-	else{
-		for (i = 0; i < count; i++) {
-			if (power_info->power_down_setting[i].seq_type == SENSOR_GPIO) {
-				if (array[i] == 0)
-					power_info->power_down_setting[i].config_val = GPIO_OUT_LOW;
-				else if (array[i] == 1)
-					power_info->power_down_setting[i].config_val = GPIO_OUT_HIGH;
-			} else {
-				power_info->power_down_setting[i].config_val = array[i];
-			}
-			CDBG("%s power_down_setting[%d].config_val = %ld\n", __func__, i,
-				power_info->power_down_setting[i].config_val);
-		}
-	}
-	kfree(array);
 	if (need_reverse) {
 		int c, end = size - 1;
 		struct msm_sensor_power_setting power_down_setting_t;

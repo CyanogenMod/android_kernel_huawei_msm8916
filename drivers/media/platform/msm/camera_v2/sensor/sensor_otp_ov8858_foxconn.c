@@ -1,7 +1,6 @@
 /************************************************************
   Copyright (C), 1988-2014, Huawei Tech. Co., Ltd.
 FileName: sensor_otp_ov8858_foxconn.c
-Author:  yWX221546
 Version :Initial Draft
 Date: 2014/05/14
 Description:    this file contion several functions to detect otp_ov5648 properties
@@ -9,7 +8,6 @@ Version:         Initial Draft
 History:
 History        :
 1.Date        : 2014/06/12
-Author        : yWX221546
 Modification : Created function
  ***********************************************************/
 

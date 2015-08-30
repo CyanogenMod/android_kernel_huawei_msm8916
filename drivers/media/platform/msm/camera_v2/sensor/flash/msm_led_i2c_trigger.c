@@ -31,7 +31,7 @@
 #define FLASH_NAME "camera-led-flash"
 #define CAM_FLASH_PINCTRL_STATE_SLEEP "cam_flash_suspend"
 #define CAM_FLASH_PINCTRL_STATE_DEFAULT "cam_flash_default"
-/*#define CONFIG_MSMB_CAMERA_DEBUG*/
+#define CONFIG_MSMB_CAMERA_DEBUG
 #undef CDBG
 #ifdef CONFIG_MSMB_CAMERA_DEBUG
 #define CDBG(fmt, args...) pr_err(fmt, ##args)
@@ -120,7 +120,7 @@ int32_t msm_led_i2c_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 		led_temperature = TEMPERATUE_NORMAL;
 		break;
 	//abnormal
-	case MSM_CAMERA_LED_TORCH_POWER_ABNORMAL: 
+	case MSM_CAMERA_LED_TORCH_POWER_ABNORMAL:
 		//need run MSM_CAMERA_LED_OFF to take off the led
 		pr_err("tunn off the flash.\n");
 		led_temperature = TEMPERATUE_ABNORMAL;
@@ -456,7 +456,7 @@ static int32_t msm_led_get_dt_data(struct device_node *of_node,
 
 	fctrl->reg_setting->high_setting->reg_setting[0].reg_data = fctrl->flash_high_current;
 	CDBG("flash_high_current %d\n", fctrl->flash_high_current);
-	
+
 	rc = of_property_read_u32(of_node, "qcom,cci-master",
 		&fctrl->cci_i2c_master);
 	CDBG("%s qcom,cci-master %d, rc %d\n", __func__, fctrl->cci_i2c_master,

@@ -1,7 +1,6 @@
 /************************************************************
   Copyright (C), 1988-1999, Huawei Tech. Co., Ltd.
   FileName: sensor_otp_s5k5e2.c
-  Author:  jwx206032
   Version :Initial Draft
   Date: 2014/10/11
   Description:    this file contion several functions to detect otp_s5k5e2 properties
@@ -9,7 +8,6 @@
   History:
    History        :
    1.Date        : 2014/10/11
-   Author        : jwx206032
    Modification : Created function
 ***********************************************************/
 #define HW_CMR_LOG_TAG "sensor_otp_s5k5e2"
@@ -52,8 +50,8 @@
 #define S5K5E2_OTP_AWB_READ_FLAG     (1 << 1)
 #define S5K5E2_OTP_LSC_READ_FLAG     (1 << 2)
 #define S5K5E2_OTP_VCM_READ_FLAG     (1 << 3)
-#define S5K5E2_OTP_READ_ALL_FLAG     (S5K5E2_OTP_ID_READ_FLAG|S5K5E2_OTP_AWB_READ_FLAG)
-
+#define S5K5E2_OTP_FF_READ_ALL_FLAG  (S5K5E2_OTP_ID_READ_FLAG|S5K5E2_OTP_AWB_READ_FLAG)
+#define S5K5E2_OTP_AF_READ_ALL_FLAG  (S5K5E2_OTP_FF_READ_ALL_FLAG|S5K5E2_OTP_VCM_READ_FLAG)
 #define OTP_INIT_STATE                0x04
 #define OTP_READ_ENABLE               0x01	
 #define OTP_READ_DISABLE              0x00   
@@ -75,6 +73,11 @@
 #define S5K5E2_OTP_AWB_GROUP2_BASE_REG        0x0A1A
 #define S5K5E2_OTP_AWB_GROUP3_BASE_REG        0x0A20
 
+#define S5K5E2_OTP_VCM_FLAG_REG	           	  0x0A04
+#define S5K5E2_OTP_VCM_GROUP1_BASE_REG        0x0A05
+#define S5K5E2_OTP_VCM_GROUP2_BASE_REG        0x0A09
+#define S5K5E2_OTP_VCM_GROUP3_BASE_REG        0x0A0D
+
 #define S5K5E2_OTP_RG_H_REG                   0x0210
 #define S5K5E2_OTP_RG_L_REG                   0x0211
 #define S5K5E2_OTP_BG_H_REG                   0x0212
@@ -93,7 +96,9 @@
 #define OTP_AWB_PAGE_NUM                      0x05
 #define OTP_LSC_FLAG_PAGE_NUM                 0x05
 
-#define ULC2_HUAWEI_CAMERA_FF_NUM            0xB2  /* 23060178  */
+#define ULC2_HUAWEI_CAMERA_FF_NUM             0xB2  /* 23060178  */
+#define ULC2_HUAWEI_CAMERA_AF_NUM             0xB3  /* 23060179  */
+#define S5K5E2_OTP_VCM_OFFSET_VALUE           100
 
 typedef enum {
 	SUNNY_MODULE_VENDOR_ID = 1,
@@ -125,6 +130,7 @@ struct S5K5E2_OTP_STRUCT {
 struct S5K5E2_OTP_STRUCT g_cur_opt_params = { 0 };
 
 static uint8_t  s5k5e2_otp_read_flag = 0;
+static bool  s5k5e2_otp_is_af_module = false;          /* AF = true, FF = false */
 
 static uint32_t rg_ratio_typical  = 0x035c;  // the average of 4 Golden samples' RG ratio
 static uint32_t bg_ratio_typical  = 0x02b8;  // the average of 4 Golden samples' BG ratio
@@ -409,6 +415,84 @@ static bool s5k5e2_otp_read_awb_group_reg_data(struct msm_sensor_ctrl_t *s_ctrl,
 	}
 	return true;
 }
+/******************************************************************************
+  Function:    s5k5e2_otp_read_awb_group_reg_data                
+  Description: get the group reg data.
+*******************************************************************************/
+static bool s5k5e2_otp_read_vcm_group_reg_data(struct msm_sensor_ctrl_t *s_ctrl, struct S5K5E2_OTP_STRUCT *otp_ptr)
+{
+	uint8_t buf[4] = { 0 };
+	uint8_t module_id_flag = 0;
+	uint8_t otp_group_num= 0; 
+	uint16_t address_start = 0; 
+	int tmpret = 0;
+		
+	s5k5e2_read_otp(s_ctrl,S5K5E2_OTP_VCM_FLAG_REG,&module_id_flag,1);
+	
+	CMR_LOGI("%s,module_id_flag = 0x%x\n",__func__,module_id_flag);
+	tmpret = s5k5e2_select_otp_group(s_ctrl,&otp_group_num,module_id_flag);
+
+	if (S5K5E2_GROUP_DATA_VALID != tmpret)
+	{
+		CMR_LOGE("%s s5k5e2_select otp group false.\n",__func__);
+		return false;
+	}
+
+	switch (otp_group_num) 
+	{
+		case S5K5E2_OTP_GROUP1:
+		{      
+			address_start = S5K5E2_OTP_VCM_GROUP1_BASE_REG;
+			break;
+		}
+		case S5K5E2_OTP_GROUP2:
+		{
+			address_start = S5K5E2_OTP_VCM_GROUP2_BASE_REG;
+			break;
+		}
+		case S5K5E2_OTP_GROUP3:
+		{
+			address_start = S5K5E2_OTP_VCM_GROUP3_BASE_REG;
+			break;
+		}
+		default:
+		{
+			CMR_LOGE("[s5k5e2_otp_read_vcm]:Error: otp_group_num %d is beyond the limit of the 3 group!\n", otp_group_num);
+			break;
+		}	
+	}
+
+	s5k5e2_read_otp(s_ctrl,address_start,buf,4);
+	
+	otp_ptr->VCM_start = ((buf[0] << 2) | ((buf[1] >> 6) & 0x03));
+	otp_ptr->VCM_max =  ((buf[2] << 2) | ((buf[3] >> 6) & 0x03));
+
+	if ((0 == otp_ptr->VCM_start) || (0 == otp_ptr->VCM_max) || (otp_ptr->VCM_max <= otp_ptr->VCM_start))
+	{
+		CMR_LOGE("VCM_start-MSB = 0x%x\n",(buf[0] << 2));
+		CMR_LOGE("VCM_start-LSB = 0x%x\n",((buf[1]>>6) & 0x03));
+		CMR_LOGE("VCM_MAX-MSB = 0x%x\n",(buf[2] << 2));
+		CMR_LOGE("VCM_MAX-LSB  = 0x%x\n",((buf[3]>>6) & 0x03));
+		CMR_LOGE("VCM_START = 0x%x\n",otp_ptr->VCM_start);
+		CMR_LOGE("VCM_MAX  = 0x%x\n",otp_ptr->VCM_max);
+		
+		return false;
+	}
+	
+	if (0 > (int)(otp_ptr->VCM_start - S5K5E2_OTP_VCM_OFFSET_VALUE))
+	{
+		CMR_LOGE("%s, otp_ptr->VCM_start = 0x%x\n", __func__,otp_ptr->VCM_start);
+		otp_ptr->VCM_start = 0;
+	}
+	else
+	{
+		otp_ptr->VCM_start -= S5K5E2_OTP_VCM_OFFSET_VALUE;
+	}
+			
+	otp_ptr->VCM_max += S5K5E2_OTP_VCM_OFFSET_VALUE;
+
+	return true;
+}
 
 /****************************************************************************
 * FunctionName: s5k5e2_otp_read_id;
@@ -441,13 +525,21 @@ static bool s5k5e2_otp_check_id(struct msm_sensor_ctrl_t * s_ctrl, struct S5K5E2
 {
 	bool ret = false;
 	uint8_t vendor_id = 0;
+
 	
 	if (true == s5k5e2_otp_read_id(s_ctrl,current_otp))
 	{
+	    CMR_LOGI("%s,s5k5e2_otp_read_id ok!\n",__func__);
 		vendor_id = ((current_otp->vendor_id)>>4) & 0x0F;
-		if (OFILM_MODULE_VENDOR_ID == vendor_id  && ULC2_HUAWEI_CAMERA_FF_NUM == current_otp->camera_id)
+		
+		if ((OFILM_MODULE_VENDOR_ID == vendor_id) && (ULC2_HUAWEI_CAMERA_FF_NUM == current_otp->camera_id)) 
 		{
-			ret = true;
+			 ret = true;	
+		}
+		else if ((FOXCONN_MODULE_VENDOR_ID == vendor_id) && (ULC2_HUAWEI_CAMERA_AF_NUM == current_otp->camera_id))
+		{
+		     s5k5e2_otp_is_af_module =  true; 	
+			 ret = true;
 		}
 		else
 		{
@@ -456,6 +548,7 @@ static bool s5k5e2_otp_check_id(struct msm_sensor_ctrl_t * s_ctrl, struct S5K5E2
 	}
 	else
 	{
+	    CMR_LOGE("%s,s5k5e2_otp_read_id error!\n",__func__);
 		ret = false;
 	}
 
@@ -497,6 +590,42 @@ static bool s5k5e2_otp_check_awb(struct msm_sensor_ctrl_t * s_ctrl, struct S5K5E
 
 	return ret;
 }
+
+/******************************************************************************
+Function   :    s5k5e2_otp_read_awb
+Description:   read the awb data from otp space .
+******************************************************************************/
+static bool s5k5e2_otp_read_vcm(struct msm_sensor_ctrl_t * s_ctrl, struct S5K5E2_OTP_STRUCT *otp_ptr)
+{ 	 
+	bool ret = false;
+     
+	s5k5e2_otp_read_page_data_enable(s_ctrl,OTP_VCM_PAGE_NUM);
+	ret = s5k5e2_otp_read_vcm_group_reg_data(s_ctrl,otp_ptr);
+	s5k5e2_otp_read_page_data_disable(s_ctrl);
+       
+	return ret;
+}
+
+/******************************************************************************
+Function   :    s5k5e2_otp_check_awb
+Description:  check the awb data is ok or not .
+******************************************************************************/
+static bool s5k5e2_otp_check_vcm(struct msm_sensor_ctrl_t * s_ctrl, struct S5K5E2_OTP_STRUCT *current_otp)
+{
+	bool ret = false;
+	  
+	if (true == s5k5e2_otp_read_vcm(s_ctrl,current_otp))
+	{
+		ret = true;
+	}
+	else
+	{
+		ret = false;
+	}
+
+	return ret;
+}
+
 
 /******************************************************************************
 Function   :    s5k5e2_otp_check_lsc_autoload_flag
@@ -1624,6 +1753,17 @@ static void s5k5e2_otp_update_awb(struct msm_sensor_ctrl_t * s_ctrl, struct S5K5
 }
 
 /******************************************************************************
+Function   :    s5k5e2_otp_update_vcm
+Description:   update the s5k5e2 vcm otp data
+******************************************************************************/
+static void s5k5e2_otp_update_vcm(struct msm_sensor_ctrl_t * s_ctrl, struct S5K5E2_OTP_STRUCT *current_otp)
+{  
+	s_ctrl->afc_otp_info.starting_dac = current_otp->VCM_start;
+	s_ctrl->afc_otp_info.infinity_dac = current_otp->VCM_start;
+	s_ctrl->afc_otp_info.macro_dac = current_otp->VCM_max;
+}
+
+/******************************************************************************
 Function   :    s5k5e2_set_otp_data_to_sensor
 Description:   set the otp data to sensor space
 ******************************************************************************/
@@ -1632,6 +1772,7 @@ static void s5k5e2_set_otp_data_to_sensor(struct msm_sensor_ctrl_t * s_ctrl, str
        
 	s5k5e2_otp_update_lsc(s_ctrl);
 	s5k5e2_otp_update_awb(s_ctrl, current_otp);
+	s5k5e2_otp_update_vcm(s_ctrl, current_otp);
 
 	return;
 }
@@ -1642,17 +1783,22 @@ Description:   Only for debug use
 ******************************************************************************/
 void s5k5e2_otp_debug(struct S5K5E2_OTP_STRUCT *otp_ptr)
 {
-	CMR_LOGI("%s,otp_ptr.year:0x%x\n",__func__,otp_ptr->year);
-	CMR_LOGI("%s,otp_ptr.month:0x%x\n",__func__,otp_ptr->month);
-	CMR_LOGI("%s,otp_ptr.day:0x%x\n",__func__,otp_ptr->day);
-	CMR_LOGI("%s,otp_ptr.camera_id:0x%x\n",__func__,otp_ptr->camera_id);
-	CMR_LOGI("%s,otp_ptr.vendor_id:0x%x\n",__func__,otp_ptr->vendor_id);
-	CMR_LOGI("%s,otp_ptr.wb_rg_h:0x%x\n",__func__,otp_ptr->wb_rg_h);
-	CMR_LOGI("%s,otp_ptr.wb_rg_l:0x%x\n",__func__,otp_ptr->wb_rg_l);
-	CMR_LOGI("%s,otp_ptr.wb_bg_h:0x%x\n",__func__,otp_ptr->wb_bg_h);
-	CMR_LOGI("%s,otp_ptr.wb_bg_l:0x%x\n",__func__,otp_ptr->wb_bg_l);
-	CMR_LOGI("%s,otp_ptr.wb_gbgr_h:0x%x\n",__func__,otp_ptr->wb_gbgr_h);
-	CMR_LOGI("%s,otp_ptr.wb_gbgr_l:0x%x\n",__func__,otp_ptr->wb_gbgr_l);
+	CMR_LOGI("%s,otp_ptr->year:0x%x\n",__func__,otp_ptr->year);
+	CMR_LOGI("%s,otp_ptr->month:0x%x\n",__func__,otp_ptr->month);
+	CMR_LOGI("%s,otp_ptr->day:0x%x\n",__func__,otp_ptr->day);
+	CMR_LOGI("%s,otp_ptr->camera_id:0x%x\n",__func__,otp_ptr->camera_id);
+	CMR_LOGI("%s,otp_ptr->vendor_id:0x%x\n",__func__,otp_ptr->vendor_id);
+	CMR_LOGI("%s,otp_ptr->wb_rg_h:0x%x\n",__func__,otp_ptr->wb_rg_h);
+	CMR_LOGI("%s,otp_ptr->wb_rg_l:0x%x\n",__func__,otp_ptr->wb_rg_l);
+	CMR_LOGI("%s,otp_ptr->wb_bg_h:0x%x\n",__func__,otp_ptr->wb_bg_h);
+	CMR_LOGI("%s,otp_ptr->wb_bg_l:0x%x\n",__func__,otp_ptr->wb_bg_l);
+	CMR_LOGI("%s,otp_ptr->wb_gbgr_h:0x%x\n",__func__,otp_ptr->wb_gbgr_h);
+	CMR_LOGI("%s,otp_ptr->wb_gbgr_l:0x%x\n",__func__,otp_ptr->wb_gbgr_l);
+	if (s5k5e2_otp_is_af_module)
+	{
+		CMR_LOGI("%s,otp_ptr->VCM_start:0x%x\n",__func__,otp_ptr->VCM_start);
+		CMR_LOGI("%s,otp_ptr->VCM_max:0x%x\n",__func__,otp_ptr->VCM_max);
+	}
 	CMR_LOGI("%s,s5k5e2_otp_get_flag:0x%x\n",__func__,s5k5e2_otp_get_flag());
 	return;
 }
@@ -1685,7 +1831,7 @@ static void s5k5e2_get_otp_from_sensor(struct msm_sensor_ctrl_t * s_ctrl, struct
 	}
 	else
 	{
-		CMR_LOGE("%s check lsc error!\n",__func__);
+		CMR_LOGE("%s: check lsc error!\n",__func__);
 	}
 	
 	ret = s5k5e2_otp_check_awb(s_ctrl, current_otp);
@@ -1697,6 +1843,21 @@ static void s5k5e2_get_otp_from_sensor(struct msm_sensor_ctrl_t * s_ctrl, struct
 	else
 	{
 		CMR_LOGE("%s: check awb error!\n",__func__);
+		return;
+	}
+	
+	if (s5k5e2_otp_is_af_module)
+	{
+		ret = s5k5e2_otp_check_vcm(s_ctrl, current_otp);
+		if (ret)
+		{
+			s5k5e2_otp_set_flag(S5K5E2_OTP_VCM_READ_FLAG);
+			CMR_LOGI("%s: check vcm ok!\n",__func__);
+		}
+		else
+		{
+			CMR_LOGE("%s: check vcm error!\n",__func__);
+		}
 	}
 	
 	return;
@@ -1707,7 +1868,9 @@ Function   :    s5k5e2_otp_func
 Description:   the interface of s5k5e2 OTP
 ******************************************************************************/
 int s5k5e2_otp_func(struct msm_sensor_ctrl_t * s_ctrl, int index)
-{       	
+{     
+	uint8_t   otp_read_flag = 0;
+	
 	CMR_LOGI("%s enters!\n",__func__); 
 
 	if (otp_function_lists[index].rg_ratio_typical)	
@@ -1722,7 +1885,9 @@ int s5k5e2_otp_func(struct msm_sensor_ctrl_t * s_ctrl, int index)
 
 	CMR_LOGD("%s, rg_ratio_typical=%04x,bg_ratio_typical=%04x\n", __func__,rg_ratio_typical,bg_ratio_typical);
 
-	if (0 == (s5k5e2_otp_get_flag()&S5K5E2_OTP_READ_ALL_FLAG))
+	otp_read_flag = s5k5e2_otp_is_af_module ? S5K5E2_OTP_AF_READ_ALL_FLAG : S5K5E2_OTP_FF_READ_ALL_FLAG;
+
+	if (0 == (s5k5e2_otp_get_flag()&otp_read_flag))
 	{
 		s5k5e2_get_otp_from_sensor(s_ctrl, &g_cur_opt_params);
 		s5k5e2_otp_debug(&g_cur_opt_params);
@@ -1732,7 +1897,7 @@ int s5k5e2_otp_func(struct msm_sensor_ctrl_t * s_ctrl, int index)
 		CMR_LOGI("%s: s5k5e2 OTP has already been read out!\n",__func__);
 	}
 	
-	if (S5K5E2_OTP_READ_ALL_FLAG != (s5k5e2_otp_get_flag()&S5K5E2_OTP_READ_ALL_FLAG))
+	if (otp_read_flag != (s5k5e2_otp_get_flag()&otp_read_flag))
 	{
 		CMR_LOGE("%s: get OTP info error,s5k5e2_otp_read_flag = 0x%x\n", __func__,s5k5e2_otp_get_flag());
 		return S5K5E2_OTP_ERROR;

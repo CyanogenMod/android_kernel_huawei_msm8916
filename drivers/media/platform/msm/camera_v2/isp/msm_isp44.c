@@ -27,7 +27,17 @@
 #ifdef CONFIG_MSM_ISP_DBG
 #define CDBG(fmt, args...) pr_err(fmt, ##args)
 #else
+#ifdef CONFIG_HUAWEI_KERNEL
+#define CDBG(fmt, args...)          \
+do{                                 \
+    if(huawei_cam_is_factory_mode())\
+    {                               \
+        pr_err(fmt, ##args);        \
+    }                               \
+}while(0)
+#else
 #define CDBG(fmt, args...) do { } while (0)
+#endif
 #endif
 
 #define STATS_IDX_BF_SCALE  0
@@ -173,18 +183,7 @@ static int msm_vfe44_init_hardware(struct vfe_device *vfe_dev)
 		pr_err("msm_isp_get_clk_info() failed\n");
 		goto fs_failed;
 	}
-	if (vfe_dev->num_clk <= 0) {
-		pr_err("%s: Invalid num of clock\n", __func__);
-		goto fs_failed;
-	} else {
-		vfe_dev->vfe_clk =
-			kzalloc(sizeof(struct clk *) * vfe_dev->num_clk,
-			GFP_KERNEL);
-		if (!vfe_dev->vfe_clk) {
-			pr_err("%s:%d No memory\n", __func__, __LINE__);
-			return -ENOMEM;
-		}
-	}
+
 	rc = msm_cam_clk_enable(&vfe_dev->pdev->dev, msm_vfe44_clk_info,
 		vfe_dev->vfe_clk, vfe_dev->num_clk, 1);
 	if (rc < 0)
@@ -222,7 +221,6 @@ vfe_remap_failed:
 		vfe_dev->vfe_clk, vfe_dev->num_clk, 0);
 clk_enable_failed:
 	regulator_disable(vfe_dev->fs_vfe);
-	kfree(vfe_dev->vfe_clk);
 fs_failed:
 	msm_isp_deinit_bandwidth_mgr(ISP_VFE0 + vfe_dev->pdev->id);
 bus_scale_register_failed:
@@ -237,7 +235,6 @@ static void msm_vfe44_release_hardware(struct vfe_device *vfe_dev)
 	iounmap(vfe_dev->vfe_base);
 	msm_cam_clk_enable(&vfe_dev->pdev->dev, msm_vfe44_clk_info,
 		vfe_dev->vfe_clk, vfe_dev->num_clk, 0);
-	kfree(vfe_dev->vfe_clk);
 	regulator_disable(vfe_dev->fs_vfe);
 	msm_isp_deinit_bandwidth_mgr(ISP_VFE0 + vfe_dev->pdev->id);
 }

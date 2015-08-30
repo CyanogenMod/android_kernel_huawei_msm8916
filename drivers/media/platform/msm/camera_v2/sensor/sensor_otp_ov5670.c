@@ -1,7 +1,6 @@
 /************************************************************
   Copyright (C), 1988-1999, Huawei Tech. Co., Ltd.
   FileName: sensor_otp_ov5670.c
-  Author:  jwx206032
   Version :Initial Draft
   Date: 2014/10/11
   Description:    this file contion several functions to detect otp_ov5670 properties
@@ -9,7 +8,6 @@
   History:
    History        :
    1.Date        : 2014/10/11
-   Author        : jwx206032
    Modification : Created function
 ***********************************************************/
 #define HW_CMR_LOG_TAG "sensor_otp_ov5670"
@@ -55,7 +53,9 @@
 #define OV5670_OTP_AWB_READ_FLAG     (1 << 1)
 #define OV5670_OTP_LSC_READ_FLAG     (1 << 2)
 #define OV5670_OTP_VCM_READ_FLAG     (1 << 3)
-#define OV5670_OTP_READ_ALL_FLAG     (OV5670_OTP_ID_READ_FLAG|OV5670_OTP_AWB_READ_FLAG|OV5670_OTP_LSC_READ_FLAG)
+
+#define OV5670_OTP_FF_READ_ALL_FLAG     (OV5670_OTP_ID_READ_FLAG|OV5670_OTP_AWB_READ_FLAG|OV5670_OTP_LSC_READ_FLAG)
+#define OV5670_OTP_AF_READ_ALL_FLAG 	  (OV5670_OTP_FF_READ_ALL_FLAG|OV5670_OTP_VCM_READ_FLAG)
 
 #define OPT_LSC_MAX_LENGTH                     16
 
@@ -84,6 +84,14 @@
 #define OV5670_OTP_LSC_GROUP3_START_REG        0x7061
 #define OV5670_OTP_LSC_GROUP3_END_REG          0x7070
 
+#define OV5670_OTP_VCM_FLAG_REG                0x7033
+#define OV5670_OTP_VCM_GROUP1_START_REG        0x7034
+#define OV5670_OTP_VCM_GROUP1_END_REG          0x7037
+#define OV5670_OTP_VCM_GROUP2_START_REG        0x7038
+#define OV5670_OTP_VCM_GROUP2_END_REG          0x703b
+#define OV5670_OTP_VCM_GROUP3_START_REG        0x703c
+#define OV5670_OTP_VCM_GROUP3_END_REG          0x703f
+
 #define OV5670_OTP_DPC_REG                     0x5002  
 #define OV5670_OTP_SENSOR_CONTRL_REG           0x100
 #define OV5670_OTP_READ_ENABLE_REG             0x3D81
@@ -101,8 +109,10 @@
 #define OV5670_OTP_BG_H_REG                    0x5036
 #define OV5670_OTP_BG_L_REG                    0x5037
 
-#define ULC2_HUAWEI_CAMERA_FF_NUM              0xB2   
-#define BYD_HUAWEI_CAMERA_FF_TMP_NUM           0x4E  
+#define ULC2_HUAWEI_CAMERA_FF_NUM              0xB2  
+#define BYD_HUAWEI_CAMERA_FF_TMP_NUM           0x4E 
+#define ULC2_HUAWEI_CAMERA_AF_NUM              0xB3 
+#define OV5670_OTP_VCM_OFFSET_VALUE            100
 
 typedef enum {
 	SUNNY_MODULE_VENDOR_ID = 1,
@@ -163,8 +173,14 @@ static OV5670_GROUP_REG_ADDR ov5670_lsc_read_group_addr[OV5670_OTP_GROUPMAX] = {
 	{OV5670_OTP_LSC_GROUP3_START_REG,OV5670_OTP_LSC_GROUP3_END_REG},
 };
 
-static uint8_t  ov5670_otp_read_flag = 0;
+static OV5670_GROUP_REG_ADDR ov5670_vcm_read_group_addr[OV5670_OTP_GROUPMAX] = {
+	{OV5670_OTP_VCM_GROUP1_START_REG,OV5670_OTP_VCM_GROUP1_END_REG},
+	{OV5670_OTP_VCM_GROUP2_START_REG,OV5670_OTP_VCM_GROUP2_END_REG},
+	{OV5670_OTP_VCM_GROUP3_START_REG,OV5670_OTP_VCM_GROUP3_END_REG},
+};
 
+static uint8_t  ov5670_otp_read_flag = 0;
+static bool      ov5670_otp_is_af_module = false;   /* AF = true, FF = false */
 static uint32_t rg_ratio_typical  = 0x0274;  //the average of 4 Golden samples' RG ratio
 static uint32_t bg_ratio_typical  = 0x029c; //the average of 4 Golden samples' BG ratio
 
@@ -503,6 +519,12 @@ static bool ov5670_otp_read_group_data(struct msm_sensor_ctrl_t *s_ctrl, ov5670_
 			pcur_addr_array = ov5670_lsc_read_group_addr;
 			break;
 		}
+		case OV5670_VCM_OTP:
+		{
+			check_flag_reg    = OV5670_OTP_VCM_FLAG_REG;
+			pcur_addr_array = ov5670_vcm_read_group_addr;
+			break;
+		}
 		default:
 		{
 			CMR_LOGE("%s: otp type error \n",__func__);
@@ -559,6 +581,35 @@ static bool ov5670_otp_read_group_data(struct msm_sensor_ctrl_t *s_ctrl, ov5670_
 			memcpy(otp_ptr->lenc, otp_buf, buf_count);
 			break;
 		}
+		case OV5670_VCM_OTP:
+		{
+			otp_ptr->VCM_start = ((otp_buf[0] << 2) | ((otp_buf[1]>>6) & 0x03));
+			otp_ptr->VCM_max =  ((otp_buf[2] << 2) | ((otp_buf[3]>>6) & 0x03));
+			if ((0 == otp_ptr->VCM_start) || (0 == otp_ptr->VCM_max) || (otp_ptr->VCM_max <= otp_ptr->VCM_start))
+			{
+				CMR_LOGE("VCM_start-MSB = 0x%x\n",(otp_buf[0] << 2));
+				CMR_LOGE("VCM_start-LSB = 0x%x\n",((otp_buf[1]>>6) & 0x03));
+				CMR_LOGE("VCM_MAX-MSB = 0x%x\n",(otp_buf[2] << 2));
+				CMR_LOGE("VCM_MAX-LSB  = 0x%x\n",((otp_buf[3]>>6) & 0x03));
+				CMR_LOGE("VCM_START = 0x%x\n",otp_ptr->VCM_start);
+				CMR_LOGE("VCM_MAX  = 0x%x\n",otp_ptr->VCM_max);
+				return false;
+			}
+			
+			if (0 > (int)(otp_ptr->VCM_start - OV5670_OTP_VCM_OFFSET_VALUE))
+			{
+				CMR_LOGE("%s, otp_ptr->VCM_start = 0x%x\n", __func__,otp_ptr->VCM_start);
+				otp_ptr->VCM_start = 0;
+			}
+			else
+			{
+				otp_ptr->VCM_start -= OV5670_OTP_VCM_OFFSET_VALUE;
+			}
+			
+			otp_ptr->VCM_max += OV5670_OTP_VCM_OFFSET_VALUE;
+			
+			break;
+		}
 		default:
 		{
 			CMR_LOGE("%s: otp type error \n",__func__);
@@ -595,15 +646,20 @@ static bool ov5670_otp_check_id(struct msm_sensor_ctrl_t * s_ctrl, struct OV5670
 {
 	bool ret = false;
 	uint8_t vendor_id = 0;
-
+   
 	if (true == ov5670_otp_read_id(s_ctrl,current_otp))
 	{
+	      CMR_LOGI("%s,ov5670_otp_read_id ok!\n",__func__);
 		vendor_id = ((current_otp->vendor_id)>>4) & 0x0F;
-		if (BYD_MODULE_VENDOR_ID == vendor_id  && ((ULC2_HUAWEI_CAMERA_FF_NUM == current_otp->camera_num)
-			|| (BYD_HUAWEI_CAMERA_FF_TMP_NUM == current_otp->camera_num)))
+		if ((BYD_MODULE_VENDOR_ID == vendor_id) && ((ULC2_HUAWEI_CAMERA_FF_NUM == current_otp->camera_num) || (BYD_HUAWEI_CAMERA_FF_TMP_NUM == current_otp->camera_num))) 
 		{
-			ret = true;
+		      ret = true;
 		}
+		else if ((OFILM_MODULE_VENDOR_ID == vendor_id) && (ULC2_HUAWEI_CAMERA_AF_NUM == current_otp->camera_num))
+		{
+		      ov5670_otp_is_af_module = true;
+			  ret = true;
+	    }
 		else
 		{
 			ret = false;
@@ -611,9 +667,9 @@ static bool ov5670_otp_check_id(struct msm_sensor_ctrl_t * s_ctrl, struct OV5670
 	}
 	else
 	{
+	    CMR_LOGE("%s,ov5670_otp_read_id error!\n",__func__);
 		ret = false;
 	}
-
 	return ret;
 
 }
@@ -665,6 +721,35 @@ static bool ov5670_otp_check_lsc(struct msm_sensor_ctrl_t * s_ctrl, struct OV567
 	bool ret = false;
 	  
 	if (true == ov5670_otp_read_lsc(s_ctrl,current_otp))
+	{
+		ret = true;
+	}
+	else
+	{
+		ret = false;
+	}
+
+	return ret;
+}
+
+/******************************************************************************
+Function   :    ov5670_otp_read_vcm
+Description:   read the awb data from otp space .
+******************************************************************************/
+static bool ov5670_otp_read_vcm(struct msm_sensor_ctrl_t * s_ctrl, struct OV5670_OTP_STRUCT *otp_ptr)
+{ 	   
+	return ov5670_otp_read_group_data(s_ctrl, OV5670_VCM_OTP, otp_ptr); 
+}
+
+/******************************************************************************
+Function   :    ov5670_otp_check_awb
+Description:  check the awb data is ok or not .
+******************************************************************************/
+static bool ov5670_otp_check_vcm(struct msm_sensor_ctrl_t * s_ctrl, struct OV5670_OTP_STRUCT *current_otp)
+{
+	bool ret = false;
+	  
+	if (true == ov5670_otp_read_vcm(s_ctrl,current_otp))
 	{
 		ret = true;
 	}
@@ -761,6 +846,12 @@ static void ov5670_otp_update_awb(struct msm_sensor_ctrl_t * s_ctrl, struct OV56
 	
 	return;
 }
+static void ov5670_otp_update_vcm(struct msm_sensor_ctrl_t * s_ctrl, struct OV5670_OTP_STRUCT *current_otp)
+{  
+	s_ctrl->afc_otp_info.starting_dac = current_otp->VCM_start;
+	s_ctrl->afc_otp_info.infinity_dac = current_otp->VCM_start;
+	s_ctrl->afc_otp_info.macro_dac = current_otp->VCM_max;
+}
 
 /******************************************************************************
 Function   :    ov5670_set_otp_data_to_sensor
@@ -769,6 +860,7 @@ Description:   set the otp data to sensor space
 static void ov5670_set_otp_data_to_sensor(struct msm_sensor_ctrl_t * s_ctrl, struct OV5670_OTP_STRUCT *current_otp)
 {
 	ov5670_otp_update_awb(s_ctrl, current_otp);
+	ov5670_otp_update_vcm(s_ctrl, current_otp);
 	return;
 }
 
@@ -780,19 +872,23 @@ void ov5670_otp_debug(struct OV5670_OTP_STRUCT *otp_ptr)
 {
   uint32_t count = 0;
 	   
-	CMR_LOGI("%s,otp_ptr.year:0x%x\n",__func__,otp_ptr->year);
-	CMR_LOGI("%s,otp_ptr.month:0x%x\n",__func__,otp_ptr->month);
-	CMR_LOGI("%s,otp_ptr.day:0x%x\n",__func__,otp_ptr->day);
-	CMR_LOGI("%s,otp_ptr.camera_id:0x%x\n",__func__,otp_ptr->camera_num);
-	CMR_LOGI("%s,otp_ptr.vendor_id:0x%x\n",__func__,otp_ptr->vendor_id);
-	CMR_LOGI("%s,otp_ptr.wb_rg_h:0x%x\n",__func__,otp_ptr->wb_rg_h);
-	CMR_LOGI("%s,otp_ptr.wb_rg_l:0x%x\n",__func__,otp_ptr->wb_rg_l);
-	CMR_LOGI("%s,otp_ptr.wb_bg_h:0x%x\n",__func__,otp_ptr->wb_bg_h);
-	CMR_LOGI("%s,otp_ptr.wb_bg_l:0x%x\n",__func__,otp_ptr->wb_bg_l);
-	CMR_LOGI("%s,otp_ptr.wb_gbgr_h:0x%x\n",__func__,otp_ptr->wb_gbgr_h);
-	CMR_LOGI("%s,otp_ptr.wb_gbgr_l:0x%x\n",__func__,otp_ptr->wb_gbgr_l);
+	CMR_LOGI("%s,otp_ptr->year:0x%x\n",__func__,otp_ptr->year);
+	CMR_LOGI("%s,otp_ptr->month:0x%x\n",__func__,otp_ptr->month);
+	CMR_LOGI("%s,otp_ptr->day:0x%x\n",__func__,otp_ptr->day);
+	CMR_LOGI("%s,otp_ptr->camera_id:0x%x\n",__func__,otp_ptr->camera_num);
+	CMR_LOGI("%s,otp_ptr->vendor_id:0x%x\n",__func__,otp_ptr->vendor_id);
+	CMR_LOGI("%s,otp_ptr->wb_rg_h:0x%x\n",__func__,otp_ptr->wb_rg_h);
+	CMR_LOGI("%s,otp_ptr->wb_rg_l:0x%x\n",__func__,otp_ptr->wb_rg_l);
+	CMR_LOGI("%s,otp_ptr->wb_bg_h:0x%x\n",__func__,otp_ptr->wb_bg_h);
+	CMR_LOGI("%s,otp_ptr->wb_bg_l:0x%x\n",__func__,otp_ptr->wb_bg_l);
+	CMR_LOGI("%s,otp_ptr->wb_gbgr_h:0x%x\n",__func__,otp_ptr->wb_gbgr_h);
+	CMR_LOGI("%s,otp_ptr->wb_gbgr_l:0x%x\n",__func__,otp_ptr->wb_gbgr_l);
 	CMR_LOGI("%s,ov5670_otp_get_flag:0x%x\n",__func__,ov5670_otp_get_flag());
-	
+	if (ov5670_otp_is_af_module)
+	{
+		CMR_LOGI("%s,otp_ptr->VCM_start:0x%x\n",__func__,otp_ptr->VCM_start);
+		CMR_LOGI("%s,otp_ptr->VCM_max:0x%x\n",__func__,otp_ptr->VCM_max);
+	}
 	for (count=0; count<OPT_LSC_MAX_LENGTH; count++)
 	{
 		CMR_LOGI("%s,otp_ptr.lenc[%d]:0x%x\n",__func__,count, otp_ptr->lenc[count]);
@@ -835,19 +931,27 @@ static void ov5670_get_otp_from_sensor(struct msm_sensor_ctrl_t * s_ctrl, struct
 		CMR_LOGE("%s: check awb error!\n",__func__);
 		goto exit;
 	}
-
+	if (ov5670_otp_is_af_module)
+	{
+		ret = ov5670_otp_check_vcm(s_ctrl, current_otp);
+		if (ret)
+		{
+			ov5670_otp_set_flag(OV5670_OTP_VCM_READ_FLAG);
+			CMR_LOGI("%s: check vcm ok!\n",__func__);
+		}
+		else
+		{
+			CMR_LOGE("%s: check vcm error!\n",__func__);
+			goto exit;
+		}
+	}
+	
 	ret = ov5670_otp_check_lsc(s_ctrl, current_otp);
 	if (ret)
 	{
 		ov5670_otp_set_flag(OV5670_OTP_LSC_READ_FLAG);
 		CMR_LOGI("%s: check lsc ok!\n",__func__);
 	}
-	else
-	{
-		CMR_LOGE("%s: check lsc error!\n",__func__);
-		goto exit;
-	}
-	
 exit:
 	usleep_range(5000, 6000);
 	ov5670_otp_enable_DPC(s_ctrl);
@@ -856,13 +960,14 @@ exit:
 	return;
 }
 
-
 /******************************************************************************
 Function   :    ov5670_otp_func
 Description:   the interface of ov5670 OTP
 ******************************************************************************/
 int ov5670_otp_func(struct msm_sensor_ctrl_t * s_ctrl, int index)
-{       	
+{       
+       uint8_t   otp_read_flag = 0;
+	  
 	CMR_LOGI("%s enters!\n",__func__); 
 
 	if (otp_function_lists[index].rg_ratio_typical)	
@@ -877,7 +982,9 @@ int ov5670_otp_func(struct msm_sensor_ctrl_t * s_ctrl, int index)
 
 	CMR_LOGD("%s, rg_ratio_typical=%04x,bg_ratio_typical=%04x\n", __func__,rg_ratio_typical,bg_ratio_typical);
 
-	if (0 == (ov5670_otp_get_flag()&OV5670_OTP_READ_ALL_FLAG))
+	otp_read_flag = ov5670_otp_is_af_module ? OV5670_OTP_AF_READ_ALL_FLAG : OV5670_OTP_FF_READ_ALL_FLAG;
+
+	if (0 == (ov5670_otp_get_flag()&otp_read_flag))
 	{
 		ov5670_get_otp_from_sensor(s_ctrl, &g_cur_ov5670_otp_params);
 		ov5670_otp_debug(&g_cur_ov5670_otp_params);
@@ -887,7 +994,7 @@ int ov5670_otp_func(struct msm_sensor_ctrl_t * s_ctrl, int index)
 		CMR_LOGI("%s: ov5670 OTP has already been read out!\n",__func__);
 	}
 	
-	if (OV5670_OTP_READ_ALL_FLAG != (ov5670_otp_get_flag()&OV5670_OTP_READ_ALL_FLAG))
+	if (otp_read_flag != (ov5670_otp_get_flag()&otp_read_flag))
 	{
 		CMR_LOGE("%s: get OTP info error,ov5670_otp_read_flag = 0x%x\n", __func__,ov5670_otp_get_flag());
 		return OV5670_OTP_ERROR;
@@ -898,4 +1005,3 @@ int ov5670_otp_func(struct msm_sensor_ctrl_t * s_ctrl, int index)
 	return OV5670_OTP_OK;	
 
 }
-

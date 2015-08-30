@@ -1,7 +1,6 @@
 /************************************************************
   Copyright (C), 1988-1999, Huawei Tech. Co., Ltd.
   FileName: sensor_otp_ov13850_sunny_p13v01h.c
-  Author:  jwx206032
   Version :Initial Draft
   Date: 2014/07/08
   Description:    this file contion several functions to detect otp_ov5648 properties
@@ -9,7 +8,6 @@
   History:
    History        :
    1.Date        : 2014/07/08
-   Author        : jwx206032
    Modification : Created function
 ***********************************************************/
 
@@ -230,13 +228,12 @@ static bool ov13850_otp_read_awb(struct msm_sensor_ctrl_t *s_ctrl)
 
 	ov13850_read_otp(s_ctrl,OTP_SLAVE_ADDR1,OTP_AWB_REG,buf,6);
 	//CMR_LOGD("%s OTP data are Rg_high=%x, Rg_low=%x, Bg_high=%x, Bg_low=%x, gbgr_high=%x, gbgr_low=%x!!!\n", __func__, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
-
-	ov13850_otp.rg_ratio = buf[0];
-	ov13850_otp.rg_ratio <<= 8;
-	ov13850_otp.rg_ratio += buf[1];
-	ov13850_otp.bg_ratio = buf[2];
-	ov13850_otp.bg_ratio <<= 8;
-	ov13850_otp.bg_ratio += buf[3];
+    ov13850_otp.bg_ratio = buf[0];
+    ov13850_otp.bg_ratio <<= 8;
+    ov13850_otp.bg_ratio += buf[1];
+    ov13850_otp.rg_ratio = buf[2];
+    ov13850_otp.rg_ratio <<= 8;
+    ov13850_otp.rg_ratio += buf[3];
 	ov13850_otp.grgb = buf[4];
 	ov13850_otp.grgb <<= 8;
 	ov13850_otp.grgb += buf[5];

@@ -31,7 +31,6 @@
 #define CSID_VERSION_V31_1                    0x30010001
 #define CSID_VERSION_V32                      0x30020000
 #define CSID_VERSION_V33                      0x30030000
-#define CSID_VERSION_V34                      0x30040000
 #define CSID_VERSION_V40                      0x40000000
 #define MSM_CSID_DRV_NAME                    "msm_csid"
 
@@ -48,6 +47,11 @@
 #else
 #define CDBG(fmt, args...) do { } while (0)
 #endif
+
+#ifdef CONFIG_HUAWEI_KERNEL
+extern bool huawei_cam_is_factory_mode(void);
+#endif
+
 static struct msm_cam_clk_info csid_clk_info[CSID_NUM_CLK_MAX];
 static struct msm_cam_clk_info csid_clk_src_info[CSID_NUM_CLK_MAX];
 
@@ -58,10 +62,6 @@ static struct camera_vreg_t csid_vreg_info[] = {
 static struct camera_vreg_t csid_8960_vreg_info[] = {
 	{"mipi_csi_vdd", REG_LDO, 1200000, 1200000, 20000},
 };
-
-#ifdef CONFIG_HUAWEI_KERNEL
-extern bool huawei_cam_is_factory_mode(void);
-#endif
 
 static int msm_csid_cid_lut(
 	struct msm_camera_csid_lut_params *csid_lut_params,
@@ -424,8 +424,7 @@ static int msm_csid_release(struct csid_device *csid_dev)
 			NULL, 0, &csid_dev->csi_vdd, 0);
 	} else if ((csid_dev->hw_version == CSID_VERSION_V31) ||
 		(csid_dev->hw_version == CSID_VERSION_V32) ||
-		(csid_dev->hw_version == CSID_VERSION_V33) ||
-		(csid_dev->hw_version == CSID_VERSION_V34)) {
+		(csid_dev->hw_version == CSID_VERSION_V33)) {
 		msm_cam_clk_enable(&csid_dev->pdev->dev, csid_clk_info,
 			csid_dev->csid_clk, csid_dev->num_clk, 0);
 		msm_camera_enable_vreg(&csid_dev->pdev->dev,
@@ -447,21 +446,28 @@ static int msm_csid_release(struct csid_device *csid_dev)
 	return 0;
 }
 
-/* optimize camera print mipi packet and frame count log*/
-static uint32_t csid_read_mipi_count(struct csid_device *csid_dev)
+static int read_times = 0;
+#define HW_PRINT_PACKET_NUM_TIME 5 //print 5 times
+#define HW_READ_PACKET_NUM_TIME 200 //200ms
+#define HW_FIRST_DELAY_TIME 500 //500ms
+static void read_packet_work_handler(struct work_struct *work)
 {
-    uint32_t value = 0;
-    if(!csid_dev || !csid_dev->base)
+	struct csid_device *csid_dev = container_of(work, struct csid_device,packet_num_work.work);
+	uint32_t value = 0;
+	if(!csid_dev || !csid_dev->base)
 	{
 		pr_err("%s:%d\n",__func__,__LINE__);
-		return 0;
+		return;
 	}
 
 	value = msm_camera_io_r(csid_dev->base + csid_dev->ctrl_reg->csid_reg.csid_stats_total_pkts_rcvd_addr);
 
-	//pr_info("%s: csid%d total mipi packet = %u\n",__func__,csid_dev->pdev->id, value);
+	pr_err("%s: csid total packet[%d] = %u\n",__func__,read_times,value);
 
-    return value;
+	read_times--;
+	if(read_times > 0) {
+		schedule_delayed_work(&csid_dev->packet_num_work, msecs_to_jiffies(HW_READ_PACKET_NUM_TIME));
+	}
 }
 
 static int32_t msm_csid_cmd(struct csid_device *csid_dev, void *arg)
@@ -478,7 +484,8 @@ static int32_t msm_csid_cmd(struct csid_device *csid_dev, void *arg)
 	switch (cdata->cfgtype) {
 	case CSID_INIT:
 		rc = msm_csid_init(csid_dev, &cdata->cfg.csid_version);
-	/* optimize camera print mipi packet and frame count log*/
+		read_times = HW_PRINT_PACKET_NUM_TIME;
+		schedule_delayed_work(&csid_dev->packet_num_work, msecs_to_jiffies(HW_FIRST_DELAY_TIME));
 		pr_err("%s CSID_INIT csid version %x, mem_start=%x\n", __func__,cdata->cfg.csid_version,
 			csid_dev->mem->start);
 		break;
@@ -528,7 +535,8 @@ static int32_t msm_csid_cmd(struct csid_device *csid_dev, void *arg)
 		break;
 	}
 	case CSID_RELEASE:
-	/* optimize camera print mipi packet and frame count log*/
+		read_times = 0;
+		cancel_delayed_work_sync(&csid_dev->packet_num_work);
 		rc = msm_csid_release(csid_dev);
 		pr_err("%s: CSID_RELEASE\n",__func__);
 		break;
@@ -810,8 +818,7 @@ static int csid_probe(struct platform_device *pdev)
 		goto csid_no_resource;
 	}
 	/*init work handler*/
-	/* optimize camera print mipi packet and frame count log*/
-	new_csid_dev->csid_read_mipi_pkg = csid_read_mipi_count;
+	INIT_DELAYED_WORK(&new_csid_dev->packet_num_work, read_packet_work_handler);
 
 	if (of_device_is_compatible(new_csid_dev->pdev->dev.of_node,
 		"qcom,csid-v2.0")) {

@@ -1,4 +1,15 @@
-
+/************************************************************
+  Copyright (C), 1988-1999, Huawei Tech. Co., Ltd.
+  FileName: sensor_otp_s5k4e1_sunny_p5s07a.c
+  Version :Initial Draft
+  Date: 2014/06/13
+  Description:    this file contion several functions to detect otp_s5k4e1 properties
+  Version:         Initial Draft
+  History:
+   History        :
+   1.Date        : 2014/06/13
+   Modification : Created function
+***********************************************************/
 
 //#define HW_CMR_LOGSWC 0   //file log switch set 0 off,default is 1 on
 #define HW_CMR_LOG_TAG "sensor_otp_s5k4e1_sunny_p5s07a"
@@ -351,6 +362,8 @@ static int s5k4e1_sunny_update_otp (struct msm_sensor_ctrl_t *s_ctrl)
 
 	//debug info
 	s5k4e1_sunny_otp_debug(current_otp);
+
+	pr_info("%s: HWCamera OTP info 23060%03d\n", __func__, current_otp.camera_id);
 
 	if (0 ==(s5k4e1_sunny_otp_read_flag & S5K4E1_SUNNY_OTP_AWB))
 	{

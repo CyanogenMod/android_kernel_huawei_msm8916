@@ -20,9 +20,6 @@
 #include "msm_isp_stats_util.h"
 #include "msm_camera_io_util.h"
 
-#ifdef CONFIG_HUAWEI_DSM
-#include "msm_camera_dsm.h"
-#endif
 #ifdef CONFIG_HUAWEI_KERNEL
 enum run_mode_enum{
 	RUN_MODE_INIT = 0,
@@ -36,16 +33,8 @@ extern char *saved_command_line;
 static DEFINE_MUTEX(bandwidth_mgr_mutex);
 static struct msm_isp_bandwidth_mgr isp_bandwidth_mgr;
 
-#ifdef CONFIG_HUAWEI_DSM
-static uint32_t overflow_cnt = 0;
-static uint32_t overflow_reported_dsm = 0;
-
-void camera_report_dsm_err_msm_isp(struct vfe_device *vfe_dev, int type, int err_num , const char* str);
-#endif
-
 #define MSM_ISP_MIN_AB 450000000
 #define MSM_ISP_MIN_IB 900000000
-#define MSM_MIN_REQ_VFE_CPP_BW 1700000000
 
 #define VFE40_8974V2_VERSION 0x1001001A
 static struct msm_bus_vectors msm_isp_init_vectors[] = {
@@ -183,10 +172,6 @@ int msm_isp_update_bandwidth(enum msm_isp_hw_client client,
 				isp_bandwidth_mgr.client_info[i].ib;
 		}
 	}
-	/*All the clients combined i.e. VFE + CPP should use atleast
-	minimum recommended bandwidth*/
-	if (path->vectors[0].ib < MSM_MIN_REQ_VFE_CPP_BW)
-		path->vectors[0].ib = MSM_MIN_REQ_VFE_CPP_BW;
 	msm_bus_scale_client_update_request(isp_bandwidth_mgr.bus_client,
 		isp_bandwidth_mgr.bus_vector_active_idx);
 	mutex_unlock(&bandwidth_mgr_mutex);
@@ -358,10 +343,10 @@ static int msm_isp_get_max_clk_rate(struct vfe_device *vfe_dev, long *rate)
 	}
 
 	clk_idx = vfe_dev->hw_info->vfe_clk_idx;
-	if (clk_idx >= vfe_dev->num_clk) {
+	if (clk_idx >= ARRAY_SIZE(vfe_dev->vfe_clk)) {
 		pr_err("%s:%d failed: clk_idx %d max array size %d\n",
 			__func__, __LINE__, clk_idx,
-			vfe_dev->num_clk);
+			ARRAY_SIZE(vfe_dev->vfe_clk));
 		return -EINVAL;
 	}
 
@@ -775,10 +760,11 @@ static int msm_isp_send_hw_cmd(struct vfe_device *vfe_dev,
 			vfe_dev->axi_data.src_info[VFE_PIX_0].last_updt_frm_id;
 		if (vfe_dev->axi_data.frame_id[session_id] != *cfg_data
 			|| update_id == *cfg_data) {
-			pr_err("%s hw update lock failed acq %d, cur id %u, last id %u\n",
-				__func__,
-				*cfg_data,
-				vfe_dev->axi_data.frame_id[session_id],
+			pr_err("hw update lock failed,acquire id %u\n",
+				*cfg_data);
+			pr_err("hw update lock failed,current id %u\n",
+				vfe_dev->axi_data.frame_id[session_id]);
+			pr_err("hw update lock failed,last id %u\n",
 				update_id);
 			return -EINVAL;
 		}
@@ -789,8 +775,9 @@ static int msm_isp_send_hw_cmd(struct vfe_device *vfe_dev,
 			vfe_dev->axi_data.src_info[VFE_PIX_0].session_id;
 		if (vfe_dev->axi_data.frame_id[session_id]
 			!= *cfg_data) {
-			pr_err("hw update across frame boundary,begin id %u, end id %d\n",
-				*cfg_data,
+			pr_err("hw update across frame boundary,begin id %u\n",
+				*cfg_data);
+			pr_err("hw update across frame boundary,end id %u\n",
 				vfe_dev->axi_data.frame_id[session_id]);
 		}
 		vfe_dev->axi_data.src_info[VFE_PIX_0].last_updt_frm_id =
@@ -1206,7 +1193,6 @@ static inline void msm_isp_process_overflow_irq(
 {
 	uint32_t overflow_mask;
 	uint32_t halt_restart_mask0, halt_restart_mask1;
-	uint8_t cur_stream_cnt = 0;
 	/*Mask out all other irqs if recovery is started*/
 	if (atomic_read(&vfe_dev->error_info.overflow_state) !=
 		NO_OVERFLOW) {
@@ -1223,16 +1209,6 @@ static inline void msm_isp_process_overflow_irq(
 		get_overflow_mask(&overflow_mask);
 	overflow_mask &= *irq_status1;
 	if (overflow_mask) {
-		cur_stream_cnt = msm_isp_get_curr_stream_cnt(vfe_dev);
-		if (cur_stream_cnt == 0) {
-			/* When immediate stop is issued during streamoff and
-			   AXI bridge is halted, if write masters are still
-			   active, then it's possible to get overflow Irq
-			   because WM is still writing pixels into UB, but UB
-			   has no way to write into bus. Since everything is
-			   being stopped anyway, skip the overflow recovery */
-			return;
-		}
 		pr_warn("%s: Bus overflow detected: 0x%x\n",
 			__func__, overflow_mask);
 		atomic_set(&vfe_dev->error_info.overflow_state,
@@ -1260,20 +1236,20 @@ static inline void msm_isp_reset_burst_count(
 	int i;
 	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
 	struct msm_vfe_axi_stream *stream_info;
-	uint32_t framedrop_period = 0;
+	struct msm_vfe_axi_stream_request_cmd framedrop_info;
 	for (i = 0; i < MAX_NUM_STREAM; i++) {
 		stream_info = &axi_data->stream_info[i];
 		if (stream_info->state != ACTIVE)
 			continue;
 		if (stream_info->stream_type == BURST_STREAM &&
 			stream_info->num_burst_capture != 0) {
-			framedrop_period = msm_isp_get_framedrop_period(
-			   stream_info->frame_skip_pattern);
-			stream_info->burst_frame_count =
-				stream_info->init_frame_drop +
-				(stream_info->num_burst_capture - 1) *
-				framedrop_period + 1;
-			msm_isp_reset_framedrop(vfe_dev, stream_info);
+			framedrop_info.burst_count =
+				stream_info->num_burst_capture;
+			framedrop_info.frame_skip_pattern =
+				stream_info->frame_skip_pattern;
+			framedrop_info.init_frame_drop = 0;
+			msm_isp_calculate_framedrop(&vfe_dev->axi_data,
+				&framedrop_info);
 		}
 	}
 }
@@ -1463,14 +1439,7 @@ void msm_isp_do_tasklet(unsigned long data)
 		}
 		if (atomic_read(&vfe_dev->error_info.overflow_state) !=
 			NO_OVERFLOW) {
-				pr_err_ratelimited("There is Overflow, kicking up recovery !!!!");
-#ifdef CONFIG_HUAWEI_DSM
-		        if ((overflow_cnt++ > 3) && (0 == overflow_reported_dsm))
-		        {
-		          overflow_reported_dsm = 1;
-		          camera_report_dsm_err_msm_isp(vfe_dev, DSM_CAMERA_ISP_OVERFLOW, irq_status0, NULL);
-		        }
-#endif
+			pr_err_ratelimited("There is Overflow, kicking up recovery !!!!");
 			msm_isp_process_overflow_recovery(vfe_dev,
 				irq_status0, irq_status1);
 			cancel_reg_update = 1;
@@ -1557,6 +1526,10 @@ int msm_isp_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	vfe_dev->axi_data.hw_info = vfe_dev->hw_info->axi_hw_info;
 	vfe_dev->taskletq_idx = 0;
 	vfe_dev->vt_enable = 0;
+	vfe_dev->p_avtimer_lsw = NULL;
+	vfe_dev->p_avtimer_msw = NULL;
+	vfe_dev->p_avtimer_ctl = NULL;
+	vfe_dev->avtimer_scaler = 1; /*No scaling*/
 	mutex_unlock(&vfe_dev->core_mutex);
 	mutex_unlock(&vfe_dev->realtime_mutex);
 	return 0;
@@ -1603,16 +1576,15 @@ int msm_isp_close_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	vfe_dev->buf_mgr->ops->buf_mgr_deinit(vfe_dev->buf_mgr);
 	vfe_dev->hw_info->vfe_ops.core_ops.release_hw(vfe_dev);
 	if (vfe_dev->vt_enable) {
+		iounmap(vfe_dev->p_avtimer_lsw);
+		iounmap(vfe_dev->p_avtimer_msw);
+		iounmap(vfe_dev->p_avtimer_ctl);
 		msm_isp_end_avtimer();
 		vfe_dev->vt_enable = 0;
+		vfe_dev->avtimer_scaler = 1;
 	}
 	mutex_unlock(&vfe_dev->core_mutex);
 	mutex_unlock(&vfe_dev->realtime_mutex);
-
-#ifdef CONFIG_HUAWEI_DSM
-	overflow_cnt = 0;
-	overflow_reported_dsm = 0;
-#endif
 	return 0;
 }
 
@@ -1642,79 +1614,5 @@ bool huawei_cam_is_factory_mode(void)
 	{
 		return false;
 	}
-}
-#endif
-
-#ifdef CONFIG_HUAWEI_DSM
-static char camera_isp_dsm_log_buff[MSM_CAMERA_DSM_BUFFER_SIZE] = {0};
-void camera_report_dsm_err_msm_isp(struct vfe_device *vfe_dev, int type, int err_num , const char* str)
-{
-	ssize_t len = 0;
-	long max_clk = 0;
-	int rc = 0;
-
-	memset(camera_isp_dsm_log_buff, 0, MSM_CAMERA_DSM_BUFFER_SIZE);
-
-	/* camera record error info according to err type */
-	switch(type)
-	{
-		case DSM_CAMERA_ISP_OVERFLOW:
-		{
-			/* isp overflow occurred*/
-			len += snprintf(camera_isp_dsm_log_buff+len, MSM_CAMERA_DSM_BUFFER_SIZE-len,
-			         "[msm_sensor]ISP Bus overflow detected.\n isp_bandwidth[ISP_VFE] ab:%llu ib:%llu\nisp_bandwidth[ISP_CPP] ab:%llu ib:%llu\n",
-					   isp_bandwidth_mgr.client_info[ISP_VFE0 + vfe_dev->pdev->id].ab,
-					   isp_bandwidth_mgr.client_info[ISP_VFE0 + vfe_dev->pdev->id].ib,
-					   isp_bandwidth_mgr.client_info[ISP_CPP].ab,
-					   isp_bandwidth_mgr.client_info[ISP_CPP].ib);
-			if ((len < 0) || (len >= MSM_CAMERA_DSM_BUFFER_SIZE -1))
-			{
-				pr_err("%s %d. write camera_isp_dsm_log_buff overflow.\n", __func__, __LINE__);
-				return ;
-			}
-
-			msm_isp_get_max_clk_rate(vfe_dev, &max_clk);
-			len += snprintf(camera_isp_dsm_log_buff+len, MSM_CAMERA_DSM_BUFFER_SIZE-len,
-			         "pixel_clock:%ld, max clock:%ld\n", vfe_dev->axi_data.src_info[VFE_PIX_0].pixel_clock, max_clk);
-			if ((len < 0) || (len >= MSM_CAMERA_DSM_BUFFER_SIZE -1))
-			{
-				pr_err("%s %d. write camera_isp_dsm_log_buff overflow.\n", __func__, __LINE__);
-				return ;
-			}
-			break;
-		}
-
-		case DSM_CAMERA_ISP_AXI_STREAM_FAIL:
-			/* isp start/stop AXI stream failed */
-			if (!str)
-			{
-				pr_err("%s. str error\n",__func__);
-				return ;
-			}
-			len += snprintf(camera_isp_dsm_log_buff+len, MSM_CAMERA_DSM_BUFFER_SIZE-len, "[msm_sensor]%s. ISP AXI wait for config done failed.\n", str);
-			if ((len < 0) || (len >= MSM_CAMERA_DSM_BUFFER_SIZE -1))
-			{
-				pr_err("%s %d. write camera_isp_dsm_log_buff overflow.\n", __func__, __LINE__);
-				return ;
-			}
-			len += snprintf(camera_isp_dsm_log_buff+len, MSM_CAMERA_DSM_BUFFER_SIZE-len, "pix_stream_count:%d  num_active_stream:%d  active:%d\n",
-			       vfe_dev->axi_data.src_info[VFE_PIX_0].pix_stream_count, vfe_dev->axi_data.num_active_stream, vfe_dev->axi_data.src_info[VFE_PIX_0].active);
-			if ((len < 0) || (len >= MSM_CAMERA_DSM_BUFFER_SIZE -1))
-			{
-				pr_err("%s %d. write camera_isp_dsm_log_buff overflow.\n", __func__, __LINE__);
-				return ;
-			}
-			break;
-
-		default:
-			break;
-	}
-
-	rc = camera_report_dsm_err( type, err_num, camera_isp_dsm_log_buff);
-	if (rc < 0)
-	{
-		pr_err("%s  camera_report_dsm_err fail.\n", __func__);
-	}
-	return ;
 }
 #endif

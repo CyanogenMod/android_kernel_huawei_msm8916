@@ -14,8 +14,6 @@
 //extern struct msm_sensor_ctrl_t;
 
 struct dsm_client *camera_dsm_client = NULL;
-char camera_dsm_log_buff[MSM_CAMERA_DSM_BUFFER_SIZE] = {0};
-int camera_is_closing = 0;
 //struct msm_sensor_ctrl_t *ps_ctrl = NULL;
 
 //int camera_dsm_dump (int type, void *buff, int size);
@@ -41,57 +39,64 @@ struct dsm_client* camera_dsm_get_client(void)
 
 		if ( NULL == camera_dsm_client)
 		{
-			pr_err("%s : camera register dsm client failed!!!\n", __func__);
+			CDBG("%s : camera register dsm client failed!!!\n", __func__);
 		}
 	}
 	
 	return camera_dsm_client;
 }
 
-static char copy_buf[MSM_CAMERA_DSM_BUFFER_SIZE];
+
+
 ssize_t camera_dsm_record_basic_info(struct dsm_client *pcamera_client , int type, int err_num , const char* str)
 {
 
 	ssize_t size = 0;
-	ssize_t len = 0;
+	ssize_t total_size = 0;
 
 	CDBG("%s: entry!\n", __func__);
-	if(!str)
-	{
-		pr_err("%s str NULL\n",__func__);
-		return -1;
-	}
 
 	/* Camera basic info */
-	memset(copy_buf, 0, MSM_CAMERA_DSM_BUFFER_SIZE);
-	len = snprintf(copy_buf, MSM_CAMERA_DSM_BUFFER_SIZE,
-					"[Camera info] DSM Camera Error Type:%d, Error No:%d, %s\n",
-					type,
-					err_num,
-					str);
-	size = dsm_client_copy(pcamera_client, copy_buf, len);
+	CDBG("%s: record basic info!\n", __func__);
 
-	return size;
+	size =dsm_client_record(pcamera_client, 
+				"[Camera info] DSM Camera Error Type:%d, Error No:%d, %s\n",
+				type,
+				err_num,
+				str);
+
+	total_size += size;
+
+	return total_size;
+
 }
 
 
-int camera_report_dsm_err( int type, int err_num, const char* str)
+int camera_report_dsm_err( int type, int err_num, const char* str )
 {
 #ifdef CONFIG_HUAWEI_DSM
+	struct dsm_client *pcamera_client = camera_dsm_get_client();
+
 	CDBG("%s: entry! type:%d\n", __func__, type);
 
+	if( NULL == pcamera_client )
+	{
+		CDBG("%s: there is not pcamera_client!\n", __func__);
+		return -1;
+	}
+
 	/* try to get permission to use the buffer */
-	if(dsm_client_ocuppy(camera_dsm_client))
+	if(dsm_client_ocuppy(pcamera_client))
 	{
 		/* buffer is busy */
-		pr_err("%s: buffer is busy!\n", __func__);
+		CDBG("%s: buffer is busy!\n", __func__);
 		return -1;
 	}
 
 	/* report camera basic infomation */
-	camera_dsm_record_basic_info(camera_dsm_client, type, err_num, str);
+	camera_dsm_record_basic_info(pcamera_client, type, err_num, str);
 
-	dsm_client_notify(camera_dsm_client, type);
+	dsm_client_notify(pcamera_client, type);
 
 #endif
 	return 0;

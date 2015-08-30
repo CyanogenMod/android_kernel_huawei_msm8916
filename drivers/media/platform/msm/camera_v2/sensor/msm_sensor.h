@@ -48,8 +48,6 @@ struct msm_sensor_fn_t {
 	int (*sensor_power_down) (struct msm_sensor_ctrl_t *);
 	int (*sensor_power_up) (struct msm_sensor_ctrl_t *);
 	int (*sensor_match_id) (struct msm_sensor_ctrl_t *);
-	/* optimize camera print mipi packet and frame count log*/
-	int (*sensor_read_framecount)(struct msm_sensor_ctrl_t *);
 };
 
 
@@ -74,12 +72,6 @@ struct msm_sensor_ctrl_t {
 	enum msm_sensor_state_t sensor_state;
 	uint8_t is_probe_succeed;
 	uint32_t id;
-	/*use dtsi get sensor name instead of board id string*/
-	//uint32_t support_sensor_count;
-	const char *support_sensor_code;
-	/* optimize camera print mipi packet and frame count log*/
-	/*add a delay work for read frame count when stream on*/
-	struct delayed_work frm_cnt_work;
 	struct device_node *of_node;
 	enum msm_camera_stream_type_t camera_stream_type;
 	uint32_t set_mclk_23880000;
