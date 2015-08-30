@@ -578,7 +578,6 @@ static void pil_vote_load_worker(struct work_struct *work)
 			pr_err("%s: Failed to load %s\n",
 				__func__, peripheral);
 			vote_info->pil_handle = NULL;
-			audio_dsm_report_num(DSM_AUDIO_ADSP_SETUP_FAIL_ERROR_NO, DSM_AUDIO_MESG_FAILED_LOAD_MODEM);
 		}
 	} else {
 		vote_info->pil_handle = NULL;

@@ -19,7 +19,7 @@
 
 #include <sound/hw_audio_info.h>
 #include <sound/hw_audio_log.h>
-#ifdef CONFIG_HUAWEI_DSM
+
 static struct dsm_dev audio_dsm_info = 
 {
     .name = DSM_AUDIO_MOD_NAME,
@@ -28,7 +28,7 @@ static struct dsm_dev audio_dsm_info =
 };
 
 static struct dsm_client *audio_dclient = NULL;
-#endif
+
 
 /* Audio property is an unsigned 32-bit integer stored in the variable of audio_property.
    The meaning of audio_property is defined as following MACROs in groups of 4 bits */
@@ -63,12 +63,6 @@ static struct dsm_client *audio_dclient = NULL;
 #define AUD_PARAM_VER_NODE             "aud_param_ver"
 #define AUD_PARAM_VER_BUFF_SIZE        32
 
-#define SPEAKER_PA_NODE             "speaker-pa"
-#define SPEAKER_PA_BUFF_SIZE        32
-
-#define PA_i2C_NODE             "pa-i2c"
-#define PA_i2C_BUFF_SIZE        32
-
 #define AUDIO_PROP_BTSCO_NREC_ADAPT_MASK 0xf0000000
 #define AUDIO_PROP_BTSCO_NREC_ADAPT_OFF  0x10000000
 #define AUDIO_PROP_BTSCO_NREC_ADAPT_ON   0x20000000
@@ -94,11 +88,6 @@ static unsigned int audio_property = 0;
 * product_identifier - Product identifier, used for audio parameter auto-adapt
 */
 static char product_identifier[PRODUCT_IDENTIFIER_BUFF_SIZE] = "default";
-
-static char speaker_pa[SPEAKER_PA_BUFF_SIZE] = "none";
-static bool tfa9895_flag = false;
-
-static char pa_i2c[PA_i2C_BUFF_SIZE] = "none";
 
 static char aud_param_ver[AUD_PARAM_VER_BUFF_SIZE] = "default";
 
@@ -128,33 +117,6 @@ static ssize_t product_identifier_show(struct device_driver *driver, char *buf)
     return 0;
 }
 DRIVER_ATTR(product_identifier, 0444, product_identifier_show, NULL);
-
-static ssize_t speaker_pa_show(struct device_driver *driver, char *buf)
-{
-    if(NULL != buf)
-    {
-        /* Newline is not appended on purpose, for convenience of reader programs */
-        snprintf(buf, PAGE_SIZE, "%s", speaker_pa);
-        return strlen(buf);
-    }
-
-    return 0;
-}
-DRIVER_ATTR(speaker_pa, 0444, speaker_pa_show, NULL);
-
-static ssize_t pa_i2c_show(struct device_driver *driver, char *buf)
-{
-    if(NULL != buf)
-    {
-        /* Newline is not appended on purpose, for convenience of reader programs */
-        snprintf(buf, PAGE_SIZE, "%s", pa_i2c);
-        return strlen(buf);
-    }
-
-    return 0;
-}
-DRIVER_ATTR(pa_i2c, 0444, pa_i2c_show, NULL);
-
 /**
 * audiopara_version_show - used for cat the value of node aud_param_ver
 */
@@ -171,126 +133,10 @@ DRIVER_ATTR(aud_param_ver, 0444, audiopara_version_show, NULL);
 /* Default audio log level */
 int audio_log_level = AUDIO_LOG_LEVEL_INFO;
 
-/**
-* audio_property - Product specified audio properties
-*/
-static ssize_t audio_log_level_show(struct device_driver *driver, char *buf)
-{
-    char level_char = ' ';
-
-    if(NULL == buf)
-    {
-        ad_loge("%s get NULL argument\n", __func__);
-        return 0;
-    }
-
-    switch(audio_log_level)
-    {
-        case AUDIO_LOG_LEVEL_VERBOSE:
-            level_char = 'V';
-            break;
-        case AUDIO_LOG_LEVEL_DEBUG:
-            level_char = 'D';
-            break;
-        case AUDIO_LOG_LEVEL_INFO:
-            level_char = 'I';
-            break;
-        case AUDIO_LOG_LEVEL_NOTICE:
-            level_char = 'N';
-            break;
-        case AUDIO_LOG_LEVEL_WARNING:
-            level_char = 'W';
-            break;
-        case AUDIO_LOG_LEVEL_ERROR:
-            level_char = 'E';
-            break;
-        case AUDIO_LOG_LEVEL_NONE:
-            level_char = '0';
-            break;
-        default:
-            level_char = ' ';
-            ad_loge("Unkown audio log level\n");
-            break;
-    }
-
-    ad_logi("Current log level is %d:%c\n", audio_log_level, level_char);
-    
-    /* Those logs are for log level confirm and test */
-    ad_logv("This is verbose log\n");
-    ad_logd("This is debug log\n");
-    ad_logi("This is info log\n");
-    ad_logn("This is notice log\n");
-    ad_logw("This is warning log\n");
-    ad_loge("This is error log\n");
-    return snprintf(buf, PAGE_SIZE, "%d:%c", audio_log_level, level_char);
-}
-
-/**
-* audio_property - Product specified audio properties
-*/
-static ssize_t audio_log_level_store(struct device_driver *driver, const char *buf, size_t count)
-{
-    char level_char;
-    int new_log_level = audio_log_level;
-    
-    if((NULL == buf) || (count < 1))
-    {
-        ad_loge("%s get illegal arguments\n", __func__);
-        return -EINVAL;
-    }
-    
-    level_char = buf[0];
-    ad_logi("Get audio log level char %c\n", level_char);
-
-    switch(level_char)
-    {
-        case 'V':
-            new_log_level = AUDIO_LOG_LEVEL_VERBOSE;
-            break;
-        case 'D':
-            new_log_level = AUDIO_LOG_LEVEL_DEBUG;
-            break;
-        case 'I':
-            new_log_level = AUDIO_LOG_LEVEL_INFO;
-            break;
-        case 'N':
-            new_log_level = AUDIO_LOG_LEVEL_NOTICE;
-            break;
-        case 'W':
-            new_log_level = AUDIO_LOG_LEVEL_WARNING;
-            break;
-        case 'E':
-            new_log_level = AUDIO_LOG_LEVEL_ERROR;
-            break;
-        case '0':
-            new_log_level = AUDIO_LOG_LEVEL_NONE;
-            break;
-        default:
-            ad_loge("Unkown audio log level character: %c\n", level_char);
-            new_log_level = audio_log_level;
-            break;
-    }
-    
-    if(audio_log_level != new_log_level)
-    {
-        ad_logi("Change audio log level from %d to %d\n", audio_log_level, new_log_level);
-        audio_log_level = new_log_level;
-    }
-    else
-    {
-        ad_logi("Audio log level remains %d\n", audio_log_level);
-    }
-    return count;
-}
-DRIVER_ATTR(audio_log_level, 0644, audio_log_level_show, audio_log_level_store);
-
 static struct attribute *audio_attrs[] = {
     &driver_attr_audio_property.attr,
     &driver_attr_product_identifier.attr,
     &driver_attr_aud_param_ver.attr,
-    &driver_attr_audio_log_level.attr,
-    &driver_attr_speaker_pa.attr,
-    &driver_attr_pa_i2c.attr,
     NULL,
 };
 
@@ -305,7 +151,7 @@ int audio_dsm_register(void)
     audio_dclient = dsm_register_client(&audio_dsm_info);
     if(NULL == audio_dclient)
     {
-        ad_loge("audio_dclient register failed!\n");
+        pr_err("audio_dclient register failed!\n");
     }
 
     return 0;
@@ -317,18 +163,18 @@ int audio_dsm_report_num(int error_no, unsigned int mesg_no)
     
     if(NULL == audio_dclient)
     {
-        ad_loge("%s: audio_dclient did not register!\n", __func__);
-        return -1;
+        pr_err("%s audio_dclient did not register!\n", __func__);
+        return 0;
     }
     
     err = dsm_client_ocuppy(audio_dclient);
     if(0 != err)
     {
-        ad_loge("%s: user buffer is busy!\n", __func__);
-        return -1;
+        pr_err("%s user buffer is busy!\n", __func__);
+        return 0;
     }
 
-    ad_loge("%s: after dsm_client_ocuppy, error_no=0x%x, mesg_no=0x%x!\n",
+    pr_err("%s user buffer apply successed, error_no=0x%x, mesg_no=0x%x!\n",
         __func__, error_no, mesg_no);
     
     err = dsm_client_record(audio_dclient, "Message code = 0x%x.\n", mesg_no);
@@ -338,40 +184,39 @@ int audio_dsm_report_num(int error_no, unsigned int mesg_no)
     return 0;
 }
 
-int audio_dsm_report_info(int error_no, char *fmt, ...)
+int audio_dsm_report_info(int error_no, void *log, int size)
 {
     int err = 0;
-    int ret = 0;
-    char dsm_report_buffer[DSM_REPORT_BUF_SIZE] = {0};
-    va_list args;
+    int rsize = 0;
     
     if(NULL == audio_dclient)
     {
-        ad_loge("%s: audio_dclient did not register!\n", __func__);
-        return -1;
+        pr_err("%s audio_dclient did not register!\n", __func__);
+        return 0;
     }
 
-    if(error_no < DSM_AUDIO_ERROR_NUM)
+    if((error_no < DSM_AUDIO_ERROR_NUM) || (NULL == log) || (size < 0))
     {
-        ad_loge("%s: input error_no err!\n", __func__);
-        return -1;
+        pr_err("%s input param error!\n", __func__);
+        return 0;
     }
-
-    va_start(args, fmt);
-    ret = vsnprintf(dsm_report_buffer, DSM_REPORT_BUF_SIZE, fmt, args);
-    va_end(args);
     
     err = dsm_client_ocuppy(audio_dclient);
     if(0 != err)
     {
-        ad_loge("%s: user buffer is busy!\n", __func__);
-        return -1;
+        pr_err("%s user buffer is busy!\n", __func__);
+        return 0;
     }
-
-    ad_loge("%s: after dsm_client_ocuppy, dsm_error_no = %d, %s\n", 
-            __func__, error_no, dsm_report_buffer);
-
-    dsm_client_record(audio_dclient, "%s\n", dsm_report_buffer);
+    
+    if(size > DSM_AUDIO_BUF_SIZE)
+    {
+        rsize = DSM_AUDIO_BUF_SIZE;
+    }
+    else
+    {
+        rsize = size;
+    }
+    err = dsm_client_copy(audio_dclient, log, rsize);
     
     dsm_client_notify(audio_dclient, error_no);
     
@@ -385,12 +230,12 @@ int inline audio_dsm_register()
     return 0;
 }
 
-int inline audio_dsm_report_num(int error_no, unsigned int mesg_no)
+int inline audio_dsm_report_num(int error_no, int mesg_no)
 {
     return 0;
 }
 
-int audio_dsm_report_info(int error_no, char *fmt, ...)
+int inline audio_dsm_report_info(int error_no, void *log, int size)
 {
     return 0;
 }
@@ -412,14 +257,6 @@ static struct of_device_id audio_info_match_table[] = {
     { },
 };
 
-bool get_tfa9895_flag(void)
-{
-   if(tfa9895_flag)
-      return true;
-   return false;   
-}
-EXPORT_SYMBOL_GPL(get_tfa9895_flag);
-
 static int audio_info_probe(struct platform_device *pdev)
 {
     int ret;
@@ -427,13 +264,13 @@ static int audio_info_probe(struct platform_device *pdev)
     
     if(NULL == pdev)
     {
-        ad_loge("huawei_audio: audio_info_probe failed, pdev is NULL\n");
+        pr_err("huawei_audio: audio_info_probe failed, pdev is NULL\n");
         return 0;
     }
     
     if(NULL == pdev->dev.of_node)
     {
-        ad_loge("huawei_audio: audio_info_probe failed, of_node is NULL\n");
+        pr_err("huawei_audio: audio_info_probe failed, of_node is NULL\n");
         return 0;
     }
 
@@ -445,8 +282,7 @@ static int audio_info_probe(struct platform_device *pdev)
     }
     else
     {
-        ad_loge("huawei_audio: check mic config, no master mic found\n");
-        audio_dsm_report_info(DSM_AUDIO_CARD_LOAD_FAIL_ERROR_NO, "master mic not found!");
+        pr_err("huawei_audio: check mic config, no master mic found\n");
     }
     
     if(of_property_read_bool(pdev->dev.of_node, AUDIO_PROP_SECONDARY_MIC_EXIST_NODE))
@@ -493,7 +329,7 @@ static int audio_info_probe(struct platform_device *pdev)
     ret = of_property_read_string(pdev->dev.of_node, PRODUCT_IDENTIFIER_NODE, &string);
     if(ret || (NULL == string))
     {
-        ad_loge("huawei_audio: of_property_read_string product-identifier failed %d\n", ret);
+        pr_err("huawei_audio: of_property_read_string product-identifier failed %d\n", ret);
     }
     else
     {
@@ -501,43 +337,9 @@ static int audio_info_probe(struct platform_device *pdev)
         strncpy(product_identifier, string, sizeof(product_identifier) - 1);
     }
 
-    string = NULL;
-    ret = of_property_read_string(pdev->dev.of_node, SPEAKER_PA_NODE, &string);
-    if(ret || (NULL == string))
-    {
-        ad_loge("huawei_audio: of_property_read_string speaker-pa failed %d\n", ret);
-    }
-    else
-    {
-        memset(speaker_pa, 0, sizeof(speaker_pa));
-        strncpy(speaker_pa, string, sizeof(speaker_pa) - 1);
-    }
-    if(strcmp(speaker_pa, "tfa9895"))
-    {
-        ad_loge("tfa9895_flag = false\n");
-        tfa9895_flag = false;
-    }
-    else
-    {
-        ad_loge("tfa9895_flag = true\n");
-        tfa9895_flag = true;
-    }
-
-    string = NULL;
-    ret = of_property_read_string(pdev->dev.of_node, PA_i2C_NODE, &string);
-    if(ret || (NULL == string))
-    {
-        ad_loge("huawei_audio: of_property_read_string pa-i2c failed %d\n", ret);
-    }
-    else
-    {
-        memset(pa_i2c, 0, sizeof(pa_i2c));
-        strncpy(pa_i2c, string, sizeof(pa_i2c) - 1);
-    }
-    
     if(false == of_property_read_bool(pdev->dev.of_node, PRODUCT_NERC_ADAPT_CONFIG))
     {
-        ad_loge("huawei_audio: of_property_read_bool PRODUCT_NERC_ADAPT_CONFIG failed %d\n", ret);
+        pr_err("huawei_audio: of_property_read_bool PRODUCT_NERC_ADAPT_CONFIG failed %d\n", ret);
         audio_property |= (AUDIO_PROP_BTSCO_NREC_ADAPT_OFF & AUDIO_PROP_BTSCO_NREC_ADAPT_MASK);
     }
     else       
@@ -549,7 +351,7 @@ static int audio_info_probe(struct platform_device *pdev)
     ret = of_property_read_string(pdev->dev.of_node, AUD_PARAM_VER_NODE, &string);
     if(ret || (NULL == string))
     {
-        ad_loge("huawei_audio: of_property_read_string aud_param_ver failed %d\n", ret);
+        pr_err("huawei_audio: of_property_read_string aud_param_ver failed %d\n", ret);
     }
     else
     {

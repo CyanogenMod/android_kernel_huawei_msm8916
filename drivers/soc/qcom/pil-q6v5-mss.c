@@ -166,7 +166,6 @@ static void log_modem_sfr(void)
 	strlcpy(reason, smem_reason, min(size, MAX_SSR_REASON_LEN));
 
 	pr_err("modem subsystem failure reason: %s.\n", reason);
-	audio_dsm_report_num(DSM_AUDIO_ADSP_SETUP_FAIL_ERROR_NO, DSM_AUDIO_MESG_MODEM_SSR_FAIL);
 
 #ifdef CONFIG_HUAWEI_KERNEL
 	if(strstr(reason,"request modem by huawei"))
@@ -200,7 +199,6 @@ static irqreturn_t modem_err_fatal_intr_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	pr_err("Fatal error on the modem.\n");
-	audio_dsm_report_num(DSM_AUDIO_ADSP_SETUP_FAIL_ERROR_NO, DSM_AUDIO_MESG_MODEM_FATAL);
 	subsys_set_crash_status(drv->subsys, true);
 	restart_modem(drv);
 	return IRQ_HANDLED;

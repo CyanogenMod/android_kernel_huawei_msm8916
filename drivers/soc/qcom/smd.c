@@ -2560,7 +2560,6 @@ static irqreturn_t smsm_irq_handler(int irq, void *data)
 		SMSM_DBG("<SM %08x %08x>\n", apps, modm);
 		if (modm & SMSM_RESET) {
 			pr_err("\nSMSM: Modem SMSM state changed to SMSM_RESET.");
-			audio_dsm_report_num(DSM_AUDIO_MODEM_CRASH_ERROR_NO, DSM_AUDIO_MESG_MODEM_SMSM_RESET);
 		} else if (modm & SMSM_INIT) {
 			if (!(apps & SMSM_INIT))
 				apps |= SMSM_INIT;

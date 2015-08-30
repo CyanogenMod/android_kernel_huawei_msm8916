@@ -288,7 +288,6 @@ int apr_send_pkt(void *handle, uint32_t *buf)
 	} else if ((svc->dest_id == APR_DEST_MODEM) &&
 		   (apr_get_modem_state() == APR_SUBSYS_DOWN)) {
 		ad_loge("apr: Still Modem is not Up\n");
-		audio_dsm_report_num(DSM_AUDIO_MODEM_CRASH_ERROR_NO, DSM_AUDIO_MESG_MODEM_STILL_NOTUP);
 		return -ENETRESET;
 	}
 
@@ -358,7 +357,6 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 			if (is_modem_up) {
 				ad_loge("%s: modem shutdown \
 					due to SSR, return", __func__);
-				audio_dsm_report_num(DSM_AUDIO_MODEM_CRASH_ERROR_NO, DSM_AUDIO_MESG_MODEM_HAS_SSR);
 				return NULL;
 			}
 			ad_logd("%s: Wait for modem to bootup\n", __func__);
