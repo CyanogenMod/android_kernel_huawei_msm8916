@@ -149,6 +149,11 @@ struct hfi_extradata_header {
 	(HFI_PROPERTY_PARAM_OX_START + 0x00A)
 #define  HFI_PROPERTY_PARAM_BUFFER_ALLOC_MODE_SUPPORTED	\
 	(HFI_PROPERTY_PARAM_OX_START + 0x00B)
+#define  HFI_PROPERTY_PARAM_BUFFER_SIZE_ACTUAL			\
+	(HFI_PROPERTY_PARAM_OX_START + 0x00C)
+#define  HFI_PROPERTY_PARAM_BUFFER_DISPLAY_HOLD_COUNT_ACTUAL	\
+	(HFI_PROPERTY_PARAM_OX_START + 0x00D)
+
 
 #define HFI_PROPERTY_CONFIG_OX_START					\
 	(HFI_DOMAIN_BASE_COMMON + HFI_ARCH_OX_OFFSET + 0x02000)
@@ -240,6 +245,9 @@ struct hfi_extradata_header {
 
 #define HFI_PROPERTY_PARAM_VPE_OX_START					\
 	(HFI_DOMAIN_BASE_VPE + HFI_ARCH_OX_OFFSET + 0x7000)
+#define HFI_PROPERTY_PARAM_VPE_COLOR_SPACE_CONVERSION			\
+	(HFI_PROPERTY_PARAM_VPE_OX_START + 0x001)
+
 #define HFI_PROPERTY_CONFIG_VPE_OX_START				\
 	(HFI_DOMAIN_BASE_VPE + HFI_ARCH_OX_OFFSET + 0x8000)
 
@@ -251,6 +259,16 @@ struct hfi_batch_info {
 struct hfi_buffer_count_actual {
 	u32 buffer_type;
 	u32 buffer_count_actual;
+};
+
+struct hfi_buffer_size_actual {
+	u32 buffer_type;
+	u32 buffer_size;
+};
+
+struct hfi_buffer_display_hold_count_actual {
+	u32 buffer_type;
+	u32 hold_count;
 };
 
 struct hfi_buffer_requirements {
@@ -316,6 +334,10 @@ struct hfi_metadata_pass_through {
 
 struct hfi_multi_view_select {
 	u32 view_index;
+};
+
+struct hfi_hybrid_hierp {
+	u32 layers;
 };
 
 #define HFI_PRIORITY_LOW		10

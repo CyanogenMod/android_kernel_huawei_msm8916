@@ -24,28 +24,6 @@ struct smem_client {
 	struct msm_vidc_platform_resources *res;
 };
 
-static u32 get_tz_usage(struct smem_client *client, enum hal_buffer buffer_type)
-{
-	int i;
-	struct buffer_usage_set *buffer_usage_set;
-	struct buffer_usage_table *buffer_usage_tbl;
-
-	buffer_usage_set = &client->res->buffer_usage_set;
-	if (!buffer_usage_set) {
-		dprintk(VIDC_DBG, "no buffer usage set present!\n");
-		return 0;
-	}
-
-	for (i = 0; i < buffer_usage_set->count; i++) {
-		buffer_usage_tbl = &buffer_usage_set->buffer_usage_tbl[i];
-		if (buffer_usage_tbl->buffer_type & buffer_type)
-			return buffer_usage_tbl->tz_usage;
-	}
-	dprintk(VIDC_DBG, "No tz usage found for buffer type: %x\n",
-			buffer_type);
-	return 0;
-}
-
 static int get_device_address(struct smem_client *smem_client,
 		struct ion_handle *hndl, unsigned long align,
 		ion_phys_addr_t *iova, unsigned long *buffer_size,
@@ -67,41 +45,37 @@ static int get_device_address(struct smem_client *smem_client,
 		return -EINVAL;
 	}
 
-	rc = msm_smem_get_domain_partition(smem_client, flags, buffer_type,
-			&domain, &partition);
-	if (rc) {
-		dprintk(VIDC_ERR, "Failed to get domain and partition: %d\n",
-				rc);
-		goto mem_domain_get_failed;
-	}
-
-	if (flags & SMEM_SECURE) {
-		rc = msm_ion_secure_buffer(clnt, hndl,
-			get_tz_usage(smem_client, buffer_type), 0);
+	if (is_iommu_present(smem_client->res)) {
+		rc = msm_smem_get_domain_partition(smem_client, flags,
+				buffer_type, &domain, &partition);
 		if (rc) {
-			dprintk(VIDC_ERR, "Failed to secure memory\n");
+			dprintk(VIDC_ERR,
+					"Failed to get domain and partition: %d\n",
+					rc);
 			goto mem_domain_get_failed;
 		}
 	}
+
 	if (is_iommu_present(smem_client->res)) {
 		dprintk(VIDC_DBG,
 				"Calling ion_map_iommu - domain: %d, partition: %d\n",
 				domain, partition);
+		trace_msm_smem_buffer_iommu_op_start("MAP", domain, partition,
+			align, *iova, *buffer_size);
 		rc = ion_map_iommu(clnt, hndl, domain, partition, align,
 				0, iova, buffer_size, 0, 0);
+		trace_msm_smem_buffer_iommu_op_end("MAP", domain, partition,
+			align, *iova, *buffer_size);
 	} else {
 		dprintk(VIDC_DBG, "Using physical memory address\n");
 		rc = ion_phys(clnt, hndl, iova, (size_t *)buffer_size);
 	}
 	if (rc) {
 		dprintk(VIDC_ERR, "ion memory map failed - %d\n", rc);
-		goto mem_map_failed;
+		goto mem_domain_get_failed;
 	}
 
 	return 0;
-mem_map_failed:
-	if (flags & SMEM_SECURE)
-		msm_ion_unsecure_buffer(clnt, hndl);
 mem_domain_get_failed:
 	return rc;
 }
@@ -126,11 +100,12 @@ static void put_device_address(struct smem_client *smem_client,
 		dprintk(VIDC_DBG,
 				"Calling ion_unmap_iommu - domain: %d, parition: %d\n",
 				domain_num, partition_num);
+
+		trace_msm_smem_buffer_iommu_op_start("UNMAP", domain_num,
+				partition_num, 0, 0, 0);
 		ion_unmap_iommu(clnt, hndl, domain_num, partition_num);
-	}
-	if (flags & SMEM_SECURE) {
-		if (msm_ion_unsecure_buffer(clnt, hndl))
-			dprintk(VIDC_ERR, "Failed to unsecure memory\n");
+		trace_msm_smem_buffer_iommu_op_end("UNMAP", domain_num,
+				partition_num, 0, 0, 0);
 	}
 }
 
@@ -218,6 +193,8 @@ static int alloc_ion_mem(struct smem_client *client, size_t size, u32 align,
 	if (flags & SMEM_SECURE)
 		heap_mask = ION_HEAP(ION_CP_MM_HEAP_ID);
 
+	trace_msm_smem_buffer_ion_op_start("ALLOC", (u32)buffer_type,
+		heap_mask, size, align, flags, map_kernel);
 	hndl = ion_alloc(client->clnt, size, align, heap_mask, flags);
 	if (IS_ERR_OR_NULL(hndl)) {
 		dprintk(VIDC_ERR,
@@ -226,6 +203,8 @@ static int alloc_ion_mem(struct smem_client *client, size_t size, u32 align,
 		rc = -ENOMEM;
 		goto fail_shared_mem_alloc;
 	}
+	trace_msm_smem_buffer_ion_op_end("ALLOC", (u32)buffer_type,
+		heap_mask, size, align, flags, map_kernel);
 	mem->mem_type = client->mem_type;
 	mem->smem_priv = hndl;
 	mem->flags = flags;
@@ -290,14 +269,20 @@ static void free_ion_mem(struct smem_client *client, struct msm_smem *mem)
 			mem->smem_priv, domain, partition, mem->flags);
 	if (mem->kvaddr)
 		ion_unmap_kernel(client->clnt, mem->smem_priv);
-	if (mem->smem_priv)
+	if (mem->smem_priv) {
+		trace_msm_smem_buffer_ion_op_start("FREE",
+				(u32)mem->buffer_type, -1, mem->size, -1,
+				mem->flags, -1);
 		ion_free(client->clnt, mem->smem_priv);
+		trace_msm_smem_buffer_ion_op_end("FREE", (u32)mem->buffer_type,
+			-1, mem->size, -1, mem->flags, -1);
+	}
 }
 
 static void *ion_new_client(void)
 {
 	struct ion_client *client = NULL;
-	client = msm_ion_client_create(-1, "video_client");
+	client = msm_ion_client_create("video_client");
 	if (!client)
 		dprintk(VIDC_ERR, "Failed to create smem client\n");
 	return client;

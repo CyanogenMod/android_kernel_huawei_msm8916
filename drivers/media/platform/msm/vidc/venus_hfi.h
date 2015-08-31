@@ -25,6 +25,7 @@
 #include "vidc_hfi_api.h"
 #include "vidc_hfi.h"
 #include "msm_vidc_resources.h"
+#include "hfi_packetization.h"
 
 #define HFI_MASK_QHDR_TX_TYPE			0xFF000000
 #define HFI_MASK_QHDR_RX_TYPE			0x00FF0000
@@ -79,8 +80,8 @@ struct hfi_mem_map_table {
 };
 
 struct hfi_mem_map {
-	ion_phys_addr_t virtual_addr;
-	phys_addr_t physical_addr;
+	u32 virtual_addr;
+	u32 physical_addr;
 	u32 size;
 	u32 attr;
 };
@@ -125,7 +126,6 @@ enum bus_index {
 enum clock_state {
 	DISABLED_UNPREPARED,
 	ENABLED_PREPARED,
-	DISABLED_PREPARED
 };
 
 struct vidc_mem_addr {
@@ -144,8 +144,9 @@ struct vidc_iface_q_info {
 
 struct hal_data {
 	u32 irq;
-	phys_addr_t firmware_base_addr;
-	u8 *register_base_addr;
+	phys_addr_t firmware_base;
+	u8 __iomem *register_base;
+	u32 register_size;
 };
 
 struct venus_bus_info {
@@ -164,6 +165,11 @@ struct venus_resources {
 	struct on_chip_mem ocmem;
 };
 
+enum venus_hfi_state {
+	VENUS_STATE_DEINIT = 1,
+	VENUS_STATE_INIT,
+};
+
 struct venus_hfi_device {
 	struct list_head list;
 	struct list_head sess_head;
@@ -171,7 +177,11 @@ struct venus_hfi_device {
 	u32 device_id;
 	u32 clk_load;
 	u32 codecs_enabled;
-	struct vidc_bus_vote_data *bus_load;
+	u32 last_packet_type;
+	struct {
+		struct vidc_bus_vote_data *vote_data;
+		u32 vote_data_count;
+	} bus_load;
 	enum clock_state clk_state;
 	bool power_enabled;
 	struct mutex read_lock;
@@ -190,12 +200,11 @@ struct venus_hfi_device {
 	struct workqueue_struct *venus_pm_workq;
 	int spur_count;
 	int reg_count;
-	phys_addr_t firmware_base;
-	phys_addr_t register_base;
-	u32 register_size;
-	u32 irq;
 	struct venus_resources resources;
 	struct msm_vidc_platform_resources *res;
+	enum venus_hfi_state state;
+	struct hfi_packetization_ops *pkt_ops;
+	enum hfi_packetization_type packetization_type;
 };
 
 void venus_hfi_delete_device(void *device);
