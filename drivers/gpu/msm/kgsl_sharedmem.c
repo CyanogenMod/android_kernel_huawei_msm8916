@@ -562,12 +562,8 @@ _kgsl_sharedmem_page_alloc(struct kgsl_memdesc *memdesc,
 
 	page_size = get_page_size(size, align);
 
-	/*
-	 * The alignment cannot be less than the intended page size - it can be
-	 * larger however to accomodate hardware quirks
-	 */
-
-	if (ilog2(align) < page_size)
+	/* update align flags for what we actually use */
+	if (page_size != PAGE_SIZE)
 		kgsl_memdesc_set_align(memdesc, ilog2(page_size));
 
 	/*
