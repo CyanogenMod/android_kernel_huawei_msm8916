@@ -602,7 +602,6 @@ extern const unsigned int a4xx_sp_tp_registers_count;
 
 extern unsigned int ft_detect_regs[];
 
-int adreno_spin_idle(struct kgsl_device *device);
 int adreno_idle(struct kgsl_device *device);
 bool adreno_isidle(struct kgsl_device *device);
 
