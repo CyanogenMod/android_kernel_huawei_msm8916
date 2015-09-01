@@ -1,7 +1,6 @@
 #ifndef MSM_ADRENO_DEVFREQ_H
 #define MSM_ADRENO_DEVFREQ_H
 
-#include <linux/devfreq.h>
 #include <linux/notifier.h>
 
 #define ADRENO_DEVFREQ_NOTIFY_SUBMIT	1
@@ -45,10 +44,6 @@ struct devfreq_msm_adreno_tz_data {
 	unsigned int device_id;
 };
 
-struct msm_adreno_extended_profile {
-	struct devfreq_msm_adreno_tz_data *private_data;
-	struct devfreq_dev_profile profile;
-};
 
 #ifdef CONFIG_DEVFREQ_GOV_MSM_GPUBW_MON
 int devfreq_vbif_update_bw(void);
