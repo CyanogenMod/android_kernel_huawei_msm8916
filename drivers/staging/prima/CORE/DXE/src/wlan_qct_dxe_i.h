@@ -1,25 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -39,6 +19,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * This file was originally distributed by Qualcomm Atheros, Inc.
+ * under proprietary terms before Copyright ownership was assigned
+ * to the Linux Foundation.
+ */
 
 #ifndef WLAN_QCT_DXE_I_H
 #define WLAN_QCT_DXE_I_H
@@ -50,9 +35,6 @@
   @brief 
                
    This file contains the external API exposed by the wlan data transfer abstraction layer module.
-   Copyright (c) 2011 Qualcomm Technologies, Inc.
-   All Rights Reserved.
-   Qualcomm Technologies Confidential and Proprietary
 ========================================================================*/
 
 /*===========================================================================
@@ -102,6 +84,7 @@ when           who        what, where, why
 #define WLANDXE_CCU_DXE_INT_SELECT_STAT   0x2050e0
 #define WLANDXE_CCU_ASIC_INT_ENABLE       0x2050e4
 #define WLANDXE_CCU_SOFT_RESET            0x204010
+#define WLANDXE_BMU_AVAILABLE_BD_PDU_LOCAL 0x80260
 #else
 #define WLANDXE_CCU_DXE_INT_SELECT        0x200b10
 #define WLANDXE_CCU_DXE_INT_SELECT_STAT   0x200b14
@@ -470,6 +453,7 @@ typedef enum {
 #define HDXE_MSG                     WPAL_TRACE
 #define HDXE_ASSERT(a)               VOS_ASSERT(a)
 
+#define WLANDXE_PRONTO_TX_WQ       0x6
 /*----------------------------------------------------------------------------
  *  Type Declarations
  * -------------------------------------------------------------------------*/
@@ -561,7 +545,7 @@ typedef struct
    void                            *nextCtrlBlk;
    wpt_packet                      *xfrFrame;  
    WLANDXE_DescType                *linkedDesc;
-   unsigned int                    linkedDescPhyAddr;
+   wpt_uint32                       linkedDescPhyAddr;
    wpt_uint32                       ctrlBlkOrder;
 #ifdef FEATURE_R33D
    wpt_uint32                       shadowBufferVa;
@@ -648,7 +632,7 @@ typedef struct
    WLANDXE_DescType               *descriptorAllocation;
 #endif
    WLANDXE_DescType               *DescBottomLoc;
-   unsigned int                    descBottomLocPhyAddr;
+   wpt_uint32                      descBottomLocPhyAddr;
    wpt_uint32                      numDesc;
    wpt_uint32                      numFreeDesc;
    wpt_uint32                      numRsvdDesc;
@@ -656,6 +640,7 @@ typedef struct
    wpt_uint32                      numFragmentCurrentChain;
    wpt_uint32                      numFrameBeforeInt;
    wpt_uint32                      numTotalFrame;
+   wpt_uint32                      doneIntDisabled;
    wpt_mutex                       dxeChannelLock;
    wpt_boolean                     hitLowResource;
    WLANDXE_ChannelConfigType       channelConfig;
@@ -663,8 +648,6 @@ typedef struct
    WLANDXE_ChannelExConfigType     extraConfig;
    WLANDXE_DMAChannelType          assignedDMAChannel;
    wpt_uint64                      rxDoneHistogram;
-   wpt_timer                       healthMonitorTimer;
-   wpt_msg                        *healthMonitorMsg;
 } WLANDXE_ChannelCBType;
 
 typedef struct
@@ -704,6 +687,7 @@ typedef struct
    wpt_boolean                     rxPalPacketUnavailable;
    wpt_boolean                     driverReloadInProcessing;
    wpt_boolean                     smsmToggled;
+   wpt_boolean                     txRingsEmpty;
 #ifdef WLAN_DXE_LOW_RESOURCE_TIMER
    wpt_timer                       rxResourceAvailableTimer;
 #endif

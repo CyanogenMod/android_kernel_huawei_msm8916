@@ -1,13 +1,17 @@
 # Android makefile for the WLAN Module
 
+# Assume no targets will be supported
+WLAN_CHIPSET :=
+
 # Build/Package options for 8960 target
-ifeq ($(call is-board-platform,msm8960),true)
+ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
 WLAN_CHIPSET := prima
 WLAN_SELECT := CONFIG_PRIMA_WLAN=m
 endif
 
-# Build/Package options for 8916 8974, 8226, 8610 targets
-ifneq (,$(filter msm8916 msm8974 msm8226 msm8610,$(TARGET_BOARD_PLATFORM)))
+# Build/Package options for 8916, 8974, 8226, 8610, 8909 targets
+ifneq (,$(filter msm8916 msm8974 msm8226 msm8610 msm8909,$(TARGET_BOARD_PLATFORM)))
+
 WLAN_CHIPSET := pronto
 WLAN_SELECT := CONFIG_PRONTO_WLAN=m
 endif
@@ -34,32 +38,21 @@ else
 endif
 
 # DLKM_DIR was moved for JELLY_BEAN (PLATFORM_SDK 16)
-ifeq ($(call is-platform-sdk-version-at-least,16),true)
+ifeq (1,$(filter 1,$(shell echo "$$(( $(PLATFORM_SDK_VERSION) >= 16 ))" )))
        DLKM_DIR := $(TOP)/device/qcom/common/dlkm
 else
        DLKM_DIR := build/dlkm
 endif
 
-# Some kernel include files are being moved.  Check to see if
-# the old version of the files are present
-INCLUDE_SELECT :=
-ifneq ($(wildcard $(TOP)/kernel//arch/arm/mach-msm/include/mach/msm_smd.h),)
-        INCLUDE_SELECT += EXISTS_MSM_SMD=1
-endif
-
-ifneq ($(wildcard $(TOP)/kernel//arch/arm/mach-msm/include/mach/msm_smsm.h),)
-        INCLUDE_SELECT += EXISTS_MSM_SMSM=1
-endif
-
 # Copy WCNSS_cfg.dat file from firmware_bin/ folder to target out directory.
 ifeq ($(WLAN_PROPRIETARY),0)
 
+$(shell mkdir -p $(TARGET_OUT_ETC)/firmware/wlan/prima)
 $(shell rm -f $(TARGET_OUT_ETC)/firmware/wlan/prima/WCNSS_cfg.dat)
 $(shell cp $(LOCAL_PATH)/firmware_bin/WCNSS_cfg.dat $(TARGET_OUT_ETC)/firmware/wlan/prima)
 
 else
 
-# For the proprietary driver the firmware files are handled here
 include $(CLEAR_VARS)
 LOCAL_MODULE       := WCNSS_qcom_wlan_nv.bin
 LOCAL_MODULE_TAGS  := optional
@@ -98,12 +91,15 @@ KBUILD_OPTIONS := WLAN_ROOT=../$(WLAN_BLD_DIR)/prima
 KBUILD_OPTIONS += MODNAME=wlan
 KBUILD_OPTIONS += BOARD_PLATFORM=$(TARGET_BOARD_PLATFORM)
 KBUILD_OPTIONS += $(WLAN_SELECT)
-KBUILD_OPTIONS += $(INCLUDE_SELECT)
+
+
+VERSION=$(shell grep -w "VERSION =" $(TOP)/kernel/Makefile | sed 's/^VERSION = //' )
+PATCHLEVEL=$(shell grep -w "PATCHLEVEL =" $(TOP)/kernel/Makefile | sed 's/^PATCHLEVEL = //' )
 
 include $(CLEAR_VARS)
 LOCAL_MODULE              := $(WLAN_CHIPSET)_wlan.ko
 LOCAL_MODULE_KBUILD_NAME  := wlan.ko
-LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_TAGS         := debug
 LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(TARGET_OUT)/lib/modules/$(WLAN_CHIPSET)
 include $(DLKM_DIR)/AndroidKernelModule.mk
@@ -113,14 +109,6 @@ include $(DLKM_DIR)/AndroidKernelModule.mk
 $(shell mkdir -p $(TARGET_OUT)/lib/modules; \
         ln -sf /system/lib/modules/$(WLAN_CHIPSET)/$(WLAN_CHIPSET)_wlan.ko \
                $(TARGET_OUT)/lib/modules/wlan.ko)
-
-ifeq ($(WLAN_PROPRIETARY),1)
-$(shell mkdir -p $(TARGET_OUT_ETC)/firmware/wlan/prima; \
-        ln -sf /persist/WCNSS_qcom_wlan_nv.bin \
-        $(TARGET_OUT_ETC)/firmware/wlan/prima/WCNSS_qcom_wlan_nv.bin; \
-        ln -sf /data/misc/wifi/WCNSS_qcom_cfg.ini \
-        $(TARGET_OUT_ETC)/firmware/wlan/prima/WCNSS_qcom_cfg.ini)
-endif
 
 endif # DLKM check
 

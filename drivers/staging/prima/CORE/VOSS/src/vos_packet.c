@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,25 +18,11 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
+
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
+ * This file was originally distributed by Qualcomm Atheros, Inc.
+ * under proprietary terms before Copyright ownership was assigned
+ * to the Linux Foundation.
  */
 
 /**=========================================================================
@@ -47,6 +33,9 @@
 
    Network Protocol packet/buffer support interfaces
 
+   Copyright 2009 (c) Qualcomm, Incorporated.  All Rights Reserved.
+
+   Qualcomm Confidential and Proprietary.
 
   ========================================================================*/
 
@@ -220,7 +209,7 @@ static void vos_pkti_replenish_raw_pool(void)
       pSkb = alloc_skb(VPKT_SIZE_BUFFER, GFP_ATOMIC);
       if (unlikely(NULL == pSkb))
       {
-         // we have replenished all that we can
+         gpVosPacketContext->rxReplenishFailCount++;
          break;
       }
       skb_reserve(pSkb, VPKT_SIZE_BUFFER);
@@ -379,7 +368,7 @@ VOS_STATUS vos_packet_open( v_VOID_t *pVosContext,
       if (sizeof(vos_pkt_context_t) != vosPacketContextSize)
       {
          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
-                   "VPKT [%d]: invalid vosPacketContextSize, %d vs %d",
+                   "VPKT [%d]: invalid vosPacketContextSize, %zu vs %d",
                    __LINE__, sizeof(vos_pkt_context_t), vosPacketContextSize);
          vosStatus = VOS_STATUS_E_INVAL;
          break;
@@ -1747,7 +1736,7 @@ VOS_STATUS vos_pkt_extract_data( vos_pkt_t *pPacket,
    }
 
    // copy the data
-   memcpy(pOutputBuffer, &skb->data[pktOffset], len);
+   vos_mem_copy(pOutputBuffer, &skb->data[pktOffset], len);
 
    return VOS_STATUS_SUCCESS;
 }
@@ -1842,7 +1831,7 @@ VOS_STATUS vos_pkt_extract_data_chain( vos_pkt_t *pPacket,
          return VOS_STATUS_E_INVAL;
       }
 
-      memcpy(pOutputBuffer, skb->data, skb->len);
+      vos_mem_copy(pOutputBuffer, skb->data, skb->len);
       pOutputBuffer += skb->len;
 
       pPacket = pPacket->pNext;
@@ -2154,7 +2143,7 @@ VOS_STATUS vos_pkt_push_head( vos_pkt_t *pPacket,
    }
 
    // actually push the data
-   memcpy(skb_push(skb, dataSize), pData, dataSize);
+   vos_mem_copy(skb_push(skb, dataSize), pData, dataSize);
 
    return VOS_STATUS_SUCCESS;
 }
@@ -2400,7 +2389,7 @@ VOS_STATUS vos_pkt_pop_head( vos_pkt_t *pPacket,
    }
 
    // copy the data
-   memcpy(pData, skb->data, dataSize);
+   vos_mem_copy(pData, skb->data, dataSize);
    skb_pull(skb, dataSize);
 
    return VOS_STATUS_SUCCESS;
@@ -2546,7 +2535,7 @@ VOS_STATUS vos_pkt_push_tail( vos_pkt_t *pPacket,
    }
 
    // actually push the data
-   memcpy(skb_put(skb, dataSize), pData, dataSize);
+   vos_mem_copy(skb_put(skb, dataSize), pData, dataSize);
 
    return VOS_STATUS_SUCCESS;
 }
@@ -2702,7 +2691,7 @@ VOS_STATUS vos_pkt_pop_tail( vos_pkt_t *pPacket,
    skb->len -= dataSize;
 
    // actually push the data
-   memcpy(pData, skb_tail_pointer(skb), dataSize);
+   vos_mem_copy(pData, skb_tail_pointer(skb), dataSize);
 
    return VOS_STATUS_SUCCESS;
 }
@@ -3021,6 +3010,32 @@ v_SIZE_t vos_pkt_get_num_of_rx_raw_pkts(void)
 #else
     return VPKT_NUM_RX_RAW_PACKETS;
 #endif
+}
+
+/**
+  @brief vos_pkt_get_num_of_rx_raw_pkts() - Get the number of times
+         skb allocation failed while replenishing packets
+
+
+  @param
+       NONE
+  @return
+       v_SIZE_t the number of times packet allocation failed
+
+*/
+v_SIZE_t vos_pkt_get_num_of_rx_pkt_alloc_failures(void)
+{
+   v_SIZE_t failCount;
+
+   mutex_lock(&gpVosPacketContext->rxReplenishListLock);
+   mutex_lock(&gpVosPacketContext->rxRawFreeListLock);
+
+   failCount = gpVosPacketContext->rxReplenishFailCount;
+
+   mutex_unlock(&gpVosPacketContext->rxReplenishListLock);
+   mutex_unlock(&gpVosPacketContext->rxRawFreeListLock);
+
+   return failCount;
 }
 
 v_U8_t vos_pkt_get_proto_type

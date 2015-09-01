@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,25 +18,11 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
+
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
+ * This file was originally distributed by Qualcomm Atheros, Inc.
+ * under proprietary terms before Copyright ownership was assigned
+ * to the Linux Foundation.
  */
 
 /*===========================================================================
@@ -151,6 +137,7 @@ typedef struct
    WCTS_RxMsgCBType       wctsRxMsgCB;
    void*                  wctsRxMsgCBData;
    WCTS_StateType         wctsState;
+   vos_spin_lock_t        wctsStateLock;
    smd_channel_t*         wctsChannel;
    wpt_list               wctsPendingQueue;
    wpt_uint32             wctsMagic;
@@ -324,6 +311,7 @@ WCTS_PALReadCallback
                            pWCTSCb->wctsRxMsgCBData);
 
       /* Free the allocated buffer*/
+      wpalMemoryZero(buffer, bytes_read);
       wpalMemoryFree(buffer);
    }
 
@@ -408,6 +396,7 @@ WCTS_PALWriteCallback
       }
 
       /* whether we had success or failure, reclaim all memory */
+      wpalMemoryZero(pBuffer, len);
       wpalMemoryFree(pBuffer);
       wpalMemoryFree(pBufferQueue);
 
@@ -573,10 +562,13 @@ WCTS_NotifyCallback
       /* SMD channel was closed from the remote side,
        * this would happen only when Riva crashed and SMD is
        * closing the channel on behalf of Riva */
+      vos_spin_lock_acquire(&pWCTSCb->wctsStateLock);
       pWCTSCb->wctsState = WCTS_STATE_REM_CLOSED;
       WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_INFO,
                  "%s: received SMD_EVENT_CLOSE WLAN driver going down now",
                  __func__);
+      vos_spin_lock_release(&pWCTSCb->wctsStateLock);
+
       /* subsystem restart: shutdown */
       wpalDriverShutdown();
       return;
@@ -729,6 +721,7 @@ WCTS_OpenTransport
    /* initialize the remaining fields */
    wpal_list_init(&pWCTSCb->wctsPendingQueue);
    pWCTSCb->wctsMagic   = WCTS_CB_MAGIC;
+   vos_spin_lock_init(&pWCTSCb->wctsStateLock);
    pWCTSCb->wctsState   = WCTS_STATE_OPEN_PENDING;
    pWCTSCb->wctsChannel = NULL;
 
@@ -886,7 +879,7 @@ WCTS_CloseTransport
    pWCTSCb->wctsNotifyCB((WCTS_HandleType)pWCTSCb,
                          WCTS_EVENT_CLOSE,
                          pWCTSCb->wctsNotifyCBData);
-
+   vos_spin_lock_destroy(&pWCTSCb->wctsStateLock);
    /* release the resource */
    pWCTSCb->wctsMagic = 0;
    wpalMemoryFree(pWCTSCb);
@@ -975,6 +968,7 @@ WCTS_SendMessage
       return eWLAN_PAL_STATUS_E_FAILURE;
    } else if (written == len) {
       /* Message sent! No deferred state, free the buffer*/
+      wpalMemoryZero(pMsg, len);
       wpalMemoryFree(pMsg);
    } else {
       /* This much data cannot be written at this time,
@@ -1007,14 +1001,16 @@ WCTS_SendMessage
          to that state.  when we do so, we enable the remote read
          interrupt so that we'll be notified when messages are read
          from the remote end */
-      if (WCTS_STATE_DEFERRED != pWCTSCb->wctsState) {
+      vos_spin_lock_acquire(&pWCTSCb->wctsStateLock);
+      if ((WCTS_STATE_DEFERRED != pWCTSCb->wctsState) &&
+                        (WCTS_STATE_REM_CLOSED != pWCTSCb->wctsState)) {
 
-         /* Mark the state as deferred.
-            Later: We may need to protect wctsState by locks*/
+         /* Mark the state as deferred.*/
          pWCTSCb->wctsState = WCTS_STATE_DEFERRED;
 
          smd_enable_read_intr(pWCTSCb->wctsChannel);
       }
+      vos_spin_lock_release(&pWCTSCb->wctsStateLock);
 
       /*indicate to client that message was placed in deferred queue*/
       return eWLAN_PAL_STATUS_E_RESOURCES;

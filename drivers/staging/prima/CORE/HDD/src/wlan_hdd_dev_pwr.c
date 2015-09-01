@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,25 +18,11 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
+
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
+ * This file was originally distributed by Qualcomm Atheros, Inc.
+ * under proprietary terms before Copyright ownership was assigned
+ * to the Linux Foundation.
  */
 
 /**========================================================================= 
@@ -61,6 +47,7 @@
  * Include Files
  * -------------------------------------------------------------------------*/
 #include <wlan_hdd_dev_pwr.h>
+#include <vos_sched.h>
 #ifdef ANI_BUS_TYPE_PLATFORM
 #include <linux/wcnss_wlan.h>
 #else
@@ -335,7 +322,7 @@ static void wlan_resume(hdd_context_t* pHddCtx)
    @return None
 
 ----------------------------------------------------------------------------*/
-int hddDevSuspendHdlr(struct device *dev)
+int __hddDevSuspendHdlr(struct device *dev)
 {
    int ret = 0;
    hdd_context_t* pHddCtx = NULL;
@@ -345,11 +332,13 @@ int hddDevSuspendHdlr(struct device *dev)
    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s: WLAN suspended by platform driver",__func__);
 
    /* Get the HDD context */
-   if(!pHddCtx) {
-      VOS_TRACE(VOS_MODULE_ID_HDD,VOS_TRACE_LEVEL_FATAL,"%s: HDD context is Null",__func__);
-      return 0;
+   ret = wlan_hdd_validate_context(pHddCtx);
+   if (0 != ret)
+   {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                 "%s: HDD context is not valid",__func__);
+       return ret;
    }
-
    if(pHddCtx->isWlanSuspended == TRUE)
    {
       VOS_TRACE(VOS_MODULE_ID_HDD,VOS_TRACE_LEVEL_FATAL,"%s: WLAN is already in suspended state",__func__);
@@ -374,6 +363,16 @@ int hddDevSuspendHdlr(struct device *dev)
    return 0;
 }
 
+int hddDevSuspendHdlr(struct device *dev)
+{
+    int ret;
+    vos_ssr_protect(__func__);
+    ret = __hddDevSuspendHdlr(dev);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
 /*----------------------------------------------------------------------------
 
    @brief Function to resume the wlan driver.
@@ -385,14 +384,21 @@ int hddDevSuspendHdlr(struct device *dev)
    @return None
 
 ----------------------------------------------------------------------------*/
-int hddDevResumeHdlr(struct device *dev)
+int __hddDevResumeHdlr(struct device *dev)
 {
    hdd_context_t* pHddCtx = NULL;
-
-   pHddCtx =  (hdd_context_t*)wcnss_wlan_get_drvdata(dev);
+   int ret = 0;
 
    VOS_TRACE(VOS_MODULE_ID_HDD,VOS_TRACE_LEVEL_INFO, "%s: WLAN being resumed by Android OS",__func__);
 
+   pHddCtx =  (hdd_context_t*)wcnss_wlan_get_drvdata(dev);
+   ret = wlan_hdd_validate_context(pHddCtx);
+   if (0 != ret)
+   {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                 "%s: HDD context is not valid ",__func__);
+       return ret;
+   }
    if(pHddCtx->isWlanSuspended != TRUE)
    {
       VOS_TRACE(VOS_MODULE_ID_HDD,VOS_TRACE_LEVEL_FATAL,"%s: WLAN is already in resumed state",__func__);
@@ -410,6 +416,17 @@ int hddDevResumeHdlr(struct device *dev)
 #endif
 
    return 0;
+}
+
+int hddDevResumeHdlr(struct device *dev)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __hddDevResumeHdlr(dev);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
 }
 
 static const struct dev_pm_ops pm_ops = {
@@ -433,7 +450,6 @@ static const struct dev_pm_ops pm_ops = {
 ----------------------------------------------------------------------------*/
 VOS_STATUS hddRegisterPmOps(hdd_context_t *pHddCtx)
 {
-    wcnss_wlan_set_drvdata(pHddCtx->parent_dev, pHddCtx);
 #ifndef FEATURE_R33D
     wcnss_wlan_register_pm_ops(pHddCtx->parent_dev, &pm_ops);
 #endif /* FEATURE_R33D */

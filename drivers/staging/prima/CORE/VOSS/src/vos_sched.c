@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,25 +18,11 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
+
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
+ * This file was originally distributed by Qualcomm Atheros, Inc.
+ * under proprietary terms before Copyright ownership was assigned
+ * to the Linux Foundation.
  */
 
 /*===========================================================================
@@ -446,7 +432,7 @@ VosMCThread
         {
            VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                "%s: pMsgWrapper is NULL", __func__);
-           VOS_ASSERT(0);
+           VOS_BUG(0);
            break;
         }
 
@@ -456,7 +442,7 @@ VosMCThread
         {
            VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                "%s: WDI Msg or Callback is NULL", __func__);
-           VOS_ASSERT(0);
+           VOS_BUG(0);
            break;
         }
 
@@ -637,20 +623,6 @@ VosMCThread
       "%s: MC Thread exiting!!!!", __func__);
   complete_and_exit(&pSchedContext->McShutdown, 0);
 } /* VosMCThread() */
-
-v_BOOL_t isWDresetInProgress(void)
-{
-   VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
-                "%s: Reset is in Progress...",__func__);
-   if(gpVosWatchdogContext!=NULL)
-   {
-      return gpVosWatchdogContext->resetInProgress;
-   }
-   else
-   {
-      return FALSE;
-   }
-}
 
 v_BOOL_t isSsrPanicOnFailure(void)
 {
@@ -835,6 +807,7 @@ VosWDThread
         {
           pWdContext->isFatalError = false;
         }
+        atomic_set(&pHddCtx->isRestartInProgress, 0);
         pWdContext->resetInProgress = false;
         complete(&pHddCtx->ssr_comp_var);
       }
@@ -1010,7 +983,7 @@ static int VosTXThread ( void * Arg )
         {
            VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                "%s: pMsgWrapper is NULL", __func__);
-           VOS_ASSERT(0);
+           VOS_BUG(0);
            break;
         }
 
@@ -1020,7 +993,7 @@ static int VosTXThread ( void * Arg )
         {
            VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                "%s: WDI Msg or Callback is NULL", __func__);
-           VOS_ASSERT(0);
+           VOS_BUG(0);
            break;
         }
         
@@ -1209,7 +1182,7 @@ static int VosRXThread ( void * Arg )
         {
           VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                     "%s: wdiRxMq message is NULL", __func__);
-          VOS_ASSERT(0);
+          VOS_BUG(0);
           // we won't return this wrapper since it is corrupt
         }
         else
@@ -1219,7 +1192,7 @@ static int VosRXThread ( void * Arg )
           {
             VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                       "%s: WDI Msg or callback is NULL", __func__);
-            VOS_ASSERT(0);
+            VOS_BUG(0);
           }
           else
           {
@@ -1337,11 +1310,6 @@ VOS_STATUS vos_watchdog_close ( v_PVOID_t pVosContext )
     wait_for_completion(&gpVosWatchdogContext->WdShutdown);
     return VOS_STATUS_SUCCESS;
 } /* vos_watchdog_close() */
-
-VOS_STATUS vos_watchdog_chip_reset ( vos_chip_reset_reason_type  reason )
-{
-    return VOS_STATUS_SUCCESS;
-} /* vos_watchdog_chip_reset() */
 
 /*---------------------------------------------------------------------------
   \brief vos_sched_init_mqs: Initialize the vOSS Scheduler message queues
@@ -1915,15 +1883,7 @@ VOS_STATUS vos_watchdog_wlan_shutdown(void)
         /* Release the lock here */
         spin_unlock(&gpVosWatchdogContext->wdLock);
         return VOS_STATUS_E_FAILURE;
-    } 
-
-    /* Set the flags so that all future CMD53 and Wext commands get blocked right away */
-    vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, TRUE);
-    vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, FALSE);
-    pHddCtx->isLogpInProgress = TRUE;
-
-    /* Release the lock here */
-    spin_unlock(&gpVosWatchdogContext->wdLock);
+    }
 
     if (WLAN_HDD_IS_LOAD_UNLOAD_IN_PROGRESS(pHddCtx))
     {
@@ -1933,8 +1893,18 @@ VOS_STATUS vos_watchdog_wlan_shutdown(void)
         /* wcnss has crashed, and SSR has alredy been started by Kernel driver.
          * So disable SSR from WLAN driver */
         hdd_set_ssr_required( HDD_SSR_DISABLED );
+        /* Release the lock here before returning */
+        spin_unlock(&gpVosWatchdogContext->wdLock);
         return VOS_STATUS_E_FAILURE;
     }
+    /* Set the flags so that all commands from userspace get blocked right away */
+    vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, TRUE);
+    vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, FALSE);
+    pHddCtx->isLogpInProgress = TRUE;
+
+    /* Release the lock here */
+    spin_unlock(&gpVosWatchdogContext->wdLock);
+
     /* Update Riva Reset Statistics */
     pHddCtx->hddRivaResetStats++;
 #ifdef CONFIG_HAS_EARLYSUSPEND

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,25 +18,11 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
+
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
+ * This file was originally distributed by Qualcomm Atheros, Inc.
+ * under proprietary terms before Copyright ownership was assigned
+ * to the Linux Foundation.
  */
 
 /**=========================================================================
@@ -62,6 +48,10 @@
 #include "wlan_qct_wdi_dts.h"
 #include "wlan_qct_wdi_dp.h"
 #include "wlan_qct_wdi_sta.h"
+
+#ifdef DEBUG_ROAM_DELAY
+#include "vos_utils.h"
+#endif
 
 static WDTS_TransportDriverTrype gTransportDriver = {
   WLANDXE_Open, 
@@ -424,6 +414,9 @@ wpt_status WDTS_TxPacketComplete(void *pContext, wpt_packet *pFrame, wpt_status 
 
   // Do Sanity checks
   if(NULL == pContext || NULL == pFrame){
+    VOS_TRACE(VOS_MODULE_ID_WDI, VOS_TRACE_LEVEL_WARN,
+                 "%s: Tx complete cannot proceed(%p:%p)",
+                 __func__, pContext, pFrame);
     return eWLAN_PAL_STATUS_E_FAILURE;
   }
 
@@ -462,6 +455,8 @@ wpt_status WDTS_TxPacketComplete(void *pContext, wpt_packet *pFrame, wpt_status 
     // intentional fall-through to handle eapol packet as mgmt
     case WDI_MAC_MGMT_FRAME:
       WDI_DS_MemPoolFree(&(pClientData->mgmtMemPool), pvBDHeader, physBDHeader);
+      VOS_TRACE(VOS_MODULE_ID_WDI, VOS_TRACE_LEVEL_INFO,
+                   "%s: Management frame Tx complete status: %d", __func__, status);
       break;
   }
   WDI_SetBDPointers(pFrame, 0, 0);
@@ -673,7 +668,9 @@ wpt_status WDTS_RxPacket (void *pContext, wpt_packet *pFrame, WDTS_ChannelType c
       pRxMetadata->offloadScanLearn = WDI_RX_BD_GET_OFFLOADSCANLEARN(pBDHeader);
       pRxMetadata->roamCandidateInd = WDI_RX_BD_GET_ROAMCANDIDATEIND(pBDHeader);
 #endif
-
+#ifdef WLAN_FEATURE_EXTSCAN
+      pRxMetadata->extscanBuffer = WDI_RX_BD_GET_EXTSCANFULLSCANRESIND(pBDHeader);
+#endif
       /* typeSubtype in BD doesn't look like correct. Fill from frame ctrl
          TL does it for Volans but TL does not know BD for Prima. WDI should do it */
       if ( 0 == WDI_RX_BD_GET_FT(pBDHeader) ) {
@@ -738,6 +735,16 @@ wpt_status WDTS_RxPacket (void *pContext, wpt_packet *pFrame, WDTS_ChannelType c
       WPAL_PACKET_SET_BD_POINTER(pFrame, pBDHeader);
       WPAL_PACKET_SET_BD_LENGTH(pFrame, sizeof(WDI_RxBdType));
 
+#ifdef DEBUG_ROAM_DELAY
+      //Hack we need to send the frame type, so we are using bufflen as frametype
+      vos_record_roam_event(e_DXE_RX_PKT_TIME, (void *)pFrame, pRxMetadata->type);
+      //Should we use the below check to avoid funciton calls
+      /*
+      if(gRoamDelayMetaInfo.dxe_monitor_tx)
+      {
+      }
+      */
+#endif
       // Invoke Rx complete callback
       pClientData->receiveFrameCB(pClientData->pCallbackContext, pFrame);  
   }
@@ -931,6 +938,16 @@ wpt_status WDTS_TxPacket(void *pContext, wpt_packet *pFrame)
 #endif
   // Send packet to  Transport Driver. 
   status =  gTransportDriver.xmit(pDTDriverContext, pFrame, channel);
+#ifdef DEBUG_ROAM_DELAY
+   //Hack we need to send the frame type, so we are using bufflen as frametype
+   vos_record_roam_event(e_DXE_FIRST_XMIT_TIME, (void *)pFrame, pTxMetadata->frmType);
+   //Should we use the below check to avoid funciton calls
+   /*
+   if(gRoamDelayMetaInfo.dxe_monitor_tx)
+   {
+   }
+   */
+#endif
   return status;
 }
 

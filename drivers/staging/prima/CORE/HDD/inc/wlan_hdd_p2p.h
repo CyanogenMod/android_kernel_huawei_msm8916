@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,25 +18,11 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
+
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
+ * This file was originally distributed by Qualcomm Atheros, Inc.
+ * under proprietary terms before Copyright ownership was assigned
+ * to the Linux Foundation.
  */
 
 #ifndef __P2P_H
@@ -51,6 +37,8 @@
                Qualcomm Confidential and Proprietary.
 
 ==========================================================================*/
+#include <linux/netdevice.h>
+#include <linux/inetdevice.h>
 #define ACTION_FRAME_TX_TIMEOUT 2000
 #define WAIT_CANCEL_REM_CHAN    1000
 #define WAIT_REM_CHAN_READY     1000
@@ -71,6 +59,8 @@
 #ifdef WLAN_FEATURE_11W
 #define WLAN_HDD_SET_WEP_FRM_FC(__fc__)     ( (__fc__) = ((__fc__) | 0x40))
 #endif //WLAN_FEATURE_11W
+
+#define HDD_P2P_MAX_ROC_DURATION            1000
 
 enum hdd_rx_flags {
     HDD_RX_FLAG_DECRYPTED        = 1 << 0,
@@ -208,5 +198,5 @@ int wlan_hdd_del_virtual_intf( struct wiphy *wiphy, struct wireless_dev *wdev );
 #else
 int wlan_hdd_del_virtual_intf( struct wiphy *wiphy, struct net_device *dev );
 #endif
-
+void hdd_p2p_roc_work_queue(struct work_struct *work);
 #endif // __P2P_H
