@@ -782,7 +782,7 @@ static ssize_t snapshot_show(struct file *filep, struct kobject *kobj,
 		return 0;
 
 	/* Get the mutex to keep things from changing while we are dumping */
-	kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
+	mutex_lock(&device->mutex);
 
 	obj_itr_init(&itr, buf, off, count);
 
@@ -837,7 +837,7 @@ static ssize_t snapshot_show(struct file *filep, struct kobject *kobj,
 	}
 
 done:
-	kgsl_mutex_unlock(&device->mutex, &device->mutex_owner);
+	mutex_unlock(&device->mutex);
 
 	return itr.write;
 }
@@ -1098,7 +1098,7 @@ void kgsl_snapshot_save_frozen_objs(struct work_struct *work)
 	unsigned int remain = 0;
 	void *snapshot_dest;
 
-	kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
+	mutex_lock(&device->mutex);
 
 	kgsl_snapshot_process_ib_obj_list(device);
 
@@ -1135,5 +1135,5 @@ void kgsl_snapshot_save_frozen_objs(struct work_struct *work)
 		kgsl_snapshot_put_object(device, snapshot_obj);
 	}
 done:
-	kgsl_mutex_unlock(&device->mutex, &device->mutex_owner);
+	mutex_unlock(&device->mutex);
 }
