@@ -236,7 +236,6 @@ struct kgsl_iommu {
 	unsigned int sync_lock_offset;
 	bool sync_lock_initialized;
 	struct clk *gtcu_iface_clk;
-	struct clk *gtbu_clk;
 };
 
 /*
