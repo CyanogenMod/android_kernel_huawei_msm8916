@@ -28,7 +28,6 @@
 #include "mdss_panel.h"
 #include "mdss_debug.h"
 
-#include <linux/hw_lcd_common.h>
 #define VSYNC_PERIOD 17
 
 struct mdss_dsi_ctrl_pdata *ctrl_list[DSI_CTRL_MAX];
@@ -1356,9 +1355,6 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 					size, SZ_4K, 0, &(addr));
 		if (IS_ERR_VALUE(ret)) {
 			pr_err("unable to map dma memory to iommu(%d)\n", ret);
-#ifdef CONFIG_HUAWEI_LCD
-			lcd_report_dsm_err(DSM_LCD_MDSS_IOMMU_ERROR_NO,ret,0);
-#endif
 			return -ENOMEM;
 		}
 	#ifdef CONFIG_HUAWEI_LCD
@@ -1418,10 +1414,7 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 
 #ifdef CONFIG_HUAWEI_LCD
 	if (ret < 0)
-	{
 		rg_address =  ((tp->len > 4) ? *(tp->data + 4) : *(tp->data));
-		lcd_report_dsm_err(DSM_LCD_MIPI_ERROR_NO, ret,rg_address);
-	}
 	//unmap it when it have been maped at front
 	if (is_mdss_iommu_attached() && iommu_attached)
 #else
@@ -1551,9 +1544,6 @@ int mdss_dsi_cmd_mdp_busy(struct mdss_dsi_ctrl_pdata *ctrl)
 				__func__, current->pid);
 		if (!wait_for_completion_timeout(&ctrl->mdp_comp,
 					msecs_to_jiffies(DMA_TX_TIMEOUT))) {
-#ifdef CONFIG_HUAWEI_LCD
-			lcd_report_dsm_err(DSM_LCD_MDSS_MDP_BUSY_ERROR_NO,0,0);
-#endif
 			pr_err("%s: timeout error\n", __func__);
 			MDSS_XLOG_TOUT_HANDLER("mdp", "dsi0", "dsi1",
 						"edp", "hdmi", "panic");
@@ -1940,9 +1930,6 @@ irqreturn_t mdss_dsi_isr(int irq, void *ptr)
 	u32 isr;
 	struct mdss_dsi_ctrl_pdata *ctrl =
 			(struct mdss_dsi_ctrl_pdata *)ptr;
-#ifdef CONFIG_HUAWEI_LCD
-	u32 dsi_status[5] = {0};
-#endif
 
 	if (!ctrl->ctrl_base) {
 		pr_err("%s:%d DSI base adr no Initialized",
@@ -1957,14 +1944,6 @@ irqreturn_t mdss_dsi_isr(int irq, void *ptr)
 
 	if (isr & DSI_INTR_ERROR) {
 		MDSS_XLOG(ctrl->ndx, ctrl->mdp_busy, isr, 0x97);
-#ifdef CONFIG_HUAWEI_LCD
-		dsi_status[0] = MIPI_INP(ctrl->ctrl_base + 0x0068);/* DSI_ACK_ERR_STATUS */
-		dsi_status[1] = MIPI_INP(ctrl->ctrl_base + 0x00c0);/* DSI_TIMEOUT_STATUS */
-		dsi_status[2] = MIPI_INP(ctrl->ctrl_base + 0x00b4);/* DSI_DLN0_PHY_ERR */
-		dsi_status[3] = MIPI_INP(ctrl->ctrl_base + 0x000c);/* DSI_FIFO_STATUS */
-		dsi_status[4] = MIPI_INP(ctrl->ctrl_base + 0x0008);/* DSI_STATUS */
-		mdss_record_dsm_err(dsi_status);
-#endif
 		mdss_dsi_error(ctrl);
 	}
 

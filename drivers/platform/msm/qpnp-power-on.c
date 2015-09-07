@@ -29,7 +29,6 @@
 #endif
 #ifdef CONFIG_HUAWEI_KERNEL
 #include <linux/dsm_pub.h>
-#include <linux/hw_lcd_common.h>
 #endif
 
 
@@ -206,10 +205,6 @@ static const char * const qpnp_poff_reason[] = {
  * boot of the device.
  */
 static int warm_boot;
-/* remove APR web LCD report log information  */
-#ifdef CONFIG_HUAWEI_DSM
-struct lcd_pwr_status_t lcd_pwr_status;
-#endif
 module_param(warm_boot, int, 0);
 
 #ifdef  CONFIG_HUAWEI_KERNEL
@@ -571,30 +566,6 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 #define POWERKEY_KEYCODE 116
 #define KEY_DOWN_S 1
 #define KEY_UP_S 0
-/* remove APR web LCD report log information  */
-#ifdef CONFIG_HUAWEI_DSM
-	if(cfg->key_code == POWERKEY_KEYCODE && key_status == KEY_DOWN_S)
-	{
-		power_key_ps = true;
-	}
-
-	/*when device wake up,we enable the timer,3 senconds later report the lcd power status if work abnormally*/
-	if(cfg->key_code == POWERKEY_KEYCODE && key_status == KEY_DOWN_S && lcd_pwr_status.panel_power_on== 0)       
-	{
-		del_timer(&lcd_pwr_status.lcd_dsm_t);
-		lcd_pwr_status.lcd_dsm_t.function = lcd_dcm_pwr_status_handler;
-  		lcd_pwr_status.lcd_dsm_t.data = 0;
-  		lcd_pwr_status.lcd_dsm_t.expires = jiffies + 3*HZ;
-		lcd_pwr_status.lcd_dcm_pwr_status = 0;
-		add_timer(&lcd_pwr_status.lcd_dsm_t);
-	}
-	/*(lcd_dcm_pwr_status & 0x000f) >> 3 == 1 means lcd  power on*/
-	/*when device suspend,del the timer*/
-	else if((cfg->key_code == POWERKEY_KEYCODE) && (key_status == KEY_DOWN_S) && (lcd_pwr_status.panel_power_on== 1) )
-	{
-		del_timer(&lcd_pwr_status.lcd_dsm_t);
-	}
-#endif
 	cfg->old_state = !!key_status;
 
 	return 0;
@@ -1644,10 +1615,6 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 	dev_set_drvdata(&spmi->dev, pon);
 
 	INIT_DELAYED_WORK(&pon->bark_work, bark_work_func);
-/* delete some lines */
-#ifdef CONFIG_HUAWEI_KERNEL
-	init_timer(&lcd_pwr_status.lcd_dsm_t);
-#endif
 	/* register the PON configurations */
 	rc = qpnp_pon_config_init(pon);
 	if (rc) {

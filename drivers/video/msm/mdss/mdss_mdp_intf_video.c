@@ -24,8 +24,6 @@
 #include "mdss_panel.h"
 #include "mdss_debug.h"
 #include "mdss_mdp_trace.h"
-/* add log on panel resume and suspend module */
-#include <linux/hw_lcd_common.h>
 /* wait for at least 2 vsyncs for lowest refresh rate (24hz) */
 #define VSYNC_TIMEOUT_US 100000
 
@@ -505,7 +503,7 @@ static int mdss_mdp_video_stop(struct mdss_mdp_ctl *ctl)
 	ctl->priv_data = NULL;
 /* add log on panel resume and suspend module */
 #ifdef CONFIG_HUAWEI_LCD
-	LCD_LOG_INFO("exit %s\n",__func__);
+	pr_info("exit %s\n",__func__);
 #endif
 	return 0;
 }
@@ -650,8 +648,6 @@ static void mdss_mdp_video_underrun_intr_done(void *arg)
 
 	if (ctl->opmode & MDSS_MDP_CTL_OP_PACK_3D_ENABLE)
 		schedule_work(&ctl->recover_work);
-	/* report underrun error to dsm */
-	mdp_underrun_dsm_report(ctl->num,ctl->underrun_cnt,cpufreq_get(0),mdss_mdp_get_clk_rate(MDSS_CLK_MDP_SRC),mdss_mdp_get_clk_rate(MDSS_CLK_AXI),mdss_mdp_get_clk_rate(MDSS_CLK_AHB));
 }
 
 static int mdss_mdp_video_vfp_fps_update(struct mdss_mdp_ctl *ctl, int new_fps)
@@ -946,10 +942,6 @@ static int mdss_mdp_video_display(struct mdss_mdp_ctl *ctl, void *arg)
 		INIT_COMPLETION(ctx->vsync_comp);
 	} else {
 		WARN(1, "commit without wait! ctl=%d", ctl->num);
-/* report video display dsm error */
-#ifdef CONFIG_HUAWEI_LCD
-		lcd_report_dsm_err(DSM_LCD_MDSS_VIDEO_DISPLAY_ERROR_NO,ctl->num,0);
-#endif
 	}
 
 	MDSS_XLOG(ctl->num, ctl->underrun_cnt);
@@ -1153,7 +1145,7 @@ static int mdss_mdp_video_intfs_setup(struct mdss_mdp_ctl *ctl,
 	int ret = 0;
 /* add log on panel resume and suspend module */
 #ifdef CONFIG_HUAWEI_LCD
-	LCD_LOG_INFO("start %s\n",__func__);
+	pr_info("start %s\n",__func__);
 #endif
 
 	if (pdata == NULL)
@@ -1256,7 +1248,7 @@ int mdss_mdp_video_start(struct mdss_mdp_ctl *ctl)
 	int intfs_num, ret = 0;
 		//add log on panel resume and suspend module
 #ifdef CONFIG_HUAWEI_LCD
-		LCD_LOG_INFO("start %s\n",__func__);
+		pr_info("start %s\n",__func__);
 #endif
 
 	intfs_num = ctl->intf_num - MDSS_MDP_INTF0;

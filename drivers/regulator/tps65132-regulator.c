@@ -26,7 +26,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
-#include <linux/hw_lcd_common.h>
 
 struct tps65132_regulator {
 	struct regulator_init_data	*init_data;
@@ -167,18 +166,12 @@ static int tps65132_regulator_get_voltage(struct regulator_dev *rdev)
 	rc = regmap_write(rdev->regmap, vreg->ctrl_reg, TPS65132_CTRL_READ_DAC);
 	if (rc) {
 		pr_err("failed to write reg %d, rc = %d\n", vreg->ctrl_reg, rc);
-#ifdef CONFIG_HUAWEI_LCD
-		lcd_report_dsm_err(DSM_LCD_MDSS_BIAS_ERROR_NO,rc,vreg->ctrl_reg);
-#endif
 		return rc;
 	}
 
 	rc = regmap_read(rdev->regmap, vreg->vol_reg, &val);
 	if (rc) {
 		pr_err("read reg %d failed, rc = %d\n", vreg->vol_reg, rc);
-#ifdef CONFIG_HUAWEI_LCD
-		lcd_report_dsm_err(DSM_LCD_MDSS_BIAS_ERROR_NO,rc,vreg->ctrl_reg);
-#endif
 		return rc;
 	} else {
 		vreg->curr_uV = (val & TPS65132_VOLTAGE_MASK) *

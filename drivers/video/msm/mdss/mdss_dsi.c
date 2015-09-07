@@ -31,7 +31,6 @@
 bool enable_PT_test = 0;
 module_param_named(enable_PT_test, enable_PT_test, bool, S_IRUGO | S_IWUSR);
 #endif
-#include <linux/hw_lcd_common.h>
 static int mdss_dsi_pinctrl_set_state(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 					bool active);
 extern int get_offline_cpu(void);
@@ -387,10 +386,6 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata)
 	}
 
 	pdata->panel_info.panel_power_on = 0;
-/* remove APR web LCD report log information  */
-#ifdef CONFIG_HUAWEI_DSM
-	lcd_pwr_status.panel_power_on = pdata->panel_info.panel_power_on;
-#endif
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
@@ -803,13 +798,8 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 				return ret;
 			}
 			pdata->panel_info.panel_power_on = 0;
-/* remove APR web LCD report log information  */
-#ifdef CONFIG_HUAWEI_DSM
-		lcd_pwr_status.panel_power_on |= pdata->panel_info.panel_power_on;
-#endif
 			return ret;
 		}
-/*delete set lcd_pwr_status.panel_power_on here*/
 		mdss_dsi_phy_sw_reset((ctrl_pdata->ctrl_base));
 		mdss_dsi_phy_init(pdata);
 		mdss_dsi_clk_ctrl(ctrl_pdata, DSI_BUS_CLKS, 0);
@@ -821,7 +811,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		mdss_dsi_sw_reset(pdata, false);
 		mdss_dsi_host_init(pdata);
 		/* add for timeout print log */
-		LCD_LOG_INFO("%s: dsi_on_time = %u,offlinecpu = %d,curfreq = %d\n",
+		pr_info("%s: dsi_on_time = %u,offlinecpu = %d,curfreq = %d\n",
 				__func__,jiffies_to_msecs(jiffies-timeout),get_offline_cpu(),cpufreq_get(0));
 	} else {
 		/*After ULPS exit do DSI reset once*/
@@ -830,7 +820,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	}
 	
 	/* add for timeout print log */
-	LCD_LOG_INFO("%s: dsi_on_time = %u,offlinecpu = %d,curfreq = %d\n",
+	pr_info("%s: dsi_on_time = %u,offlinecpu = %d,curfreq = %d\n",
 			__func__,jiffies_to_msecs(jiffies-timeout),get_offline_cpu(),cpufreq_get(0));
 
 	/*
@@ -847,11 +837,6 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		mdss_dsi_panel_reset(pdata, 1);
 	}
 	pdata->panel_info.panel_power_on = 1;
-/*set lcd_pwr_status.panel_power_on state*/
-/* remove APR web LCD report log information  */
-#ifdef CONFIG_HUAWEI_DSM
-	lcd_pwr_status.panel_power_on |= pdata->panel_info.panel_power_on;
-#endif
 	if (mipi->init_delay)
 		usleep(mipi->init_delay);
 
@@ -1501,13 +1486,6 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 	const char *ctrl_name;
 	bool cmd_cfg_cont_splash = true;
 	struct mdss_panel_cfg *pan_cfg = NULL;
-#ifdef CONFIG_HUAWEI_LCD
-	struct dsm_dev dsm_lcd = {
-		.name = "dsm_lcd",
-		.fops = NULL,
-		.buff_size = 1024,
-	};
-#endif
 	if (!mdss_is_ready()) {
 		pr_err("%s: MDP not probed yet!\n", __func__);
 		return -EPROBE_DEFER;
@@ -1615,11 +1593,6 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 	}
 
 	pr_debug("%s: Dsi Ctrl->%d initialized\n", __func__, index);
-#ifdef CONFIG_HUAWEI_LCD
-	if (!lcd_dclient) {
-		lcd_dclient = dsm_register_client(&dsm_lcd);
-	}
-#endif
 	return 0;
 
 error_pan_node:
@@ -1973,9 +1946,6 @@ int dsi_panel_device_register(struct device_node *pan_node,
 
 	if (pinfo->cont_splash_enabled) {
 		pinfo->panel_power_on = 1;
-#ifdef CONFIG_HUAWEI_LCD
-		lcd_pwr_status.panel_power_on |= pinfo->panel_power_on;
-#endif
 		rc = mdss_dsi_panel_power_on(&(ctrl_pdata->panel_data), 1);
 		if (rc) {
 			pr_err("%s: Panel power on failed\n", __func__);
@@ -1988,9 +1958,6 @@ int dsi_panel_device_register(struct device_node *pan_node,
 			(CTRL_STATE_PANEL_INIT | CTRL_STATE_MDP_ACTIVE);
 	} else {
 		pinfo->panel_power_on = 0;
-#ifdef CONFIG_HUAWEI_LCD
-		lcd_pwr_status.panel_power_on |= pinfo->panel_power_on;
-#endif
 	}
 
 	rc = mdss_register_panel(ctrl_pdev, &(ctrl_pdata->panel_data));

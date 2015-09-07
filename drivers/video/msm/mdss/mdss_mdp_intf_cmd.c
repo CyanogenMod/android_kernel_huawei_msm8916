@@ -17,7 +17,6 @@
 #include "mdss_panel.h"
 #include "mdss_debug.h"
 #include "mdss_mdp_trace.h"
-#include <linux/hw_lcd_common.h>
 
 #define VSYNC_EXPIRE_TICK 6
 
@@ -891,10 +890,6 @@ int mdss_mdp_cmd_intfs_stop(struct mdss_mdp_ctl *ctl, int session)
 					STOP_TIMEOUT(hz))
 		    <= 0) {
 			WARN(1, "stop cmd time out\n");
-/* report cmd stop dsm error */
-#ifdef CONFIG_HUAWEI_LCD
-			lcd_report_dsm_err(DSM_LCD_MDSS_CMD_STOP_ERROR_NO,0,0);
-#endif
 			if (IS_ERR_OR_NULL(ctl->panel_data)) {
 				pr_err("no panel data\n");
 			} else {

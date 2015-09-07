@@ -35,8 +35,6 @@
 #include "mdss_fb.h"
 #include "mdss_mdp.h"
 #include "mdss_mdp_rotator.h"
-/* add log on panel resume and suspend module */
-#include <linux/hw_lcd_common.h>
 #define VSYNC_PERIOD 16
 #define BORDERFILL_NDX	0x0BF000BF
 #define CHECK_BOUNDS(offset, size, max_size) \
@@ -3280,7 +3278,7 @@ static int mdss_mdp_overlay_on(struct msm_fb_data_type *mfd)
 	struct mdss_mdp_ctl *ctl = NULL;
 /* add log on panel resume and suspend module */
 #ifdef CONFIG_HUAWEI_LCD
-	LCD_LOG_INFO("start %s\n",__func__);
+	pr_info("start %s\n",__func__);
 #endif
 	if (!mfd)
 		return -ENODEV;
@@ -3408,7 +3406,7 @@ static int mdss_mdp_overlay_off(struct msm_fb_data_type *mfd)
 	mutex_unlock(&mdp5_data->ov_lock);
 /* add log on panel resume and suspend module */
 #ifdef CONFIG_HUAWEI_LCD
-	LCD_LOG_INFO("exit %s\n",__func__);
+	pr_info("exit %s\n",__func__);
 #endif
 	return rc;
 }

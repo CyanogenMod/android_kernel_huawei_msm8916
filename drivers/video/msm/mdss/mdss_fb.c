@@ -55,7 +55,6 @@
 #include "mdss_mdp_splash_logo.h"
 
 #include <linux/log_jank.h>
-#include <linux/hw_lcd_common.h>
 #ifdef CONFIG_HUAWEI_LCD
 #include "mdss_mdp.h"
 struct msmfb_cabc_config g_cabc_cfg_foresd;
@@ -279,7 +278,7 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 		mutex_unlock(&mfd->bl_lock);
 /* add for timeout print log */
 		if(!time_before(jiffies, timeout)){
-			LCD_LOG_INFO("%s:  level = %d, set backlight time = %u,offlinecpu = %d,curfreq = %d\n",
+			pr_info("%s:  level = %d, set backlight time = %u,offlinecpu = %d,curfreq = %d\n",
 			__func__,bl_lvl,jiffies_to_msecs(jiffies-timeout+HZ/10),get_offline_cpu(),cpufreq_get(0));
 		}
 
@@ -434,7 +433,7 @@ static ssize_t mdss_show_inversion_mode(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)fbi->par;
 	int ret;
-	LCD_LOG_DBG("fb%d inversion mode = %d\n", mfd->index, mfd->panel_info->inversion_mode);
+	pr_debug("fb%d inversion mode = %d\n", mfd->index, mfd->panel_info->inversion_mode);
 	ret = scnprintf(buf, PAGE_SIZE, "%d\n",mfd->panel_info->inversion_mode);
 	return ret;
 }
@@ -464,7 +463,7 @@ static ssize_t mdss_store_inversion_mode(struct device *dev,
 	}
 	else
 	{
-		LCD_LOG_ERR("This panel maybe sleep ,or can not support set inversion mode\n");
+		pr_err("This panel maybe sleep ,or can not support set inversion mode\n");
 		return -EINVAL;
 	}
 	return count;
@@ -486,7 +485,7 @@ static ssize_t mdss_show_panel_status(struct device *dev,
 	}
 	else
 	{
-		LCD_LOG_ERR("This panel maybe sleep ,or can not support check panel status\n");
+		pr_err("This panel maybe sleep ,or can not support check panel status\n");
 	}
 	
 	ret = scnprintf(buf, PAGE_SIZE, "%d\n",ret);
@@ -516,7 +515,7 @@ static int msm_fb_set_display_inversion(struct msm_fb_data_type *mfd, unsigned i
 	}
 	else
 	{
-		LCD_LOG_ERR("This panel maybe sleep ,or can not support display inversion function\n");
+		pr_err("This panel maybe sleep ,or can not support display inversion function\n");
 		ret = -EINVAL;
 	}
 
@@ -537,7 +536,7 @@ static ssize_t mdss_show_mipi_crc_check(struct device *dev,
 	}
 	else
 	{
-		LCD_LOG_ERR("This panel maybe sleep ,or can not support checking mipi crc.\n");
+		pr_err("This panel maybe sleep ,or can not support checking mipi crc.\n");
 	}
 	
 	ret = scnprintf(buf, PAGE_SIZE, "%d\n",ret);
@@ -1230,19 +1229,14 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 /* remove APR web LCD report log information  */
 		if ( mfd->bl_level_scaled == 0 )
 		{
-			LCD_LOG_INFO("%s: set backlight to %d\n",__func__,temp);	
-			#ifdef CONFIG_HUAWEI_DSM
-			lcd_pwr_status.lcd_dcm_pwr_status |= BIT(3);
-			do_gettimeofday(&lcd_pwr_status.tvl_backlight);
-			time_to_tm(lcd_pwr_status.tvl_backlight.tv_sec, 0, &lcd_pwr_status.tm_backlight);
-			#endif
+			pr_info("%s: set backlight to %d\n",__func__,temp);
 
 		}
 	#endif
 		timeout = jiffies + HZ/10 ;
 		pdata->set_backlight(pdata, temp);
 		if(!time_before(jiffies, timeout)){
-			LCD_LOG_INFO("%s: level = %d, set backlight time = %u,offlinecpu = %d,curfreq = %d\n",
+			pr_info("%s: level = %d, set backlight time = %u,offlinecpu = %d,curfreq = %d\n",
 			__func__,temp,jiffies_to_msecs(jiffies-timeout+HZ/10),get_offline_cpu(),cpufreq_get(0));
 		}
 		/* avoid APR web LCD report log mistakenly*/
@@ -1347,7 +1341,7 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 #ifdef CONFIG_HUAWEI_LCD
 	pdata = dev_get_platdata(&mfd->pdev->dev);
 	if (!pdata) {
-		LCD_LOG_ERR( "mdss_fb_blank_sub: no panel operation detected!\n");
+		pr_err( "mdss_fb_blank_sub: no panel operation detected!\n");
 		return -ENODEV;
 	}
 #endif
@@ -1358,19 +1352,13 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 	case FB_BLANK_UNBLANK:
 		//add log on panel resume and suspend module
 #ifdef CONFIG_HUAWEI_LCD
-		LCD_LOG_INFO(" %s:blank_mode is FB_BLANK_UNBLANK when panel on\n",__func__);
+		pr_info(" %s:blank_mode is FB_BLANK_UNBLANK when panel on\n",__func__);
 #endif
 	if (mfd->disp_thread == NULL) {
 		ret = mdss_fb_start_disp_thread(mfd);
 		if (ret < 0)
 			return ret;
 	}
-/* remove APR web LCD report log information  */
-#ifdef CONFIG_HUAWEI_DSM
-		lcd_pwr_status.lcd_dcm_pwr_status |= BIT(0);
-		do_gettimeofday(&lcd_pwr_status.tvl_unblank);
-		time_to_tm(lcd_pwr_status.tvl_unblank.tv_sec, 0, &lcd_pwr_status.tm_unblank);
-#endif
 		if (!mfd->panel_power_on && mfd->mdp.on_fnc) {
 #ifdef CONFIG_HUAWEI_LCD
             /*fix LCD off when turn off wifidisplay*/
@@ -1413,7 +1401,7 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 				{
 					mdss_fb_config_cabc(mfd, last_cabc_mode);
 					last_cabc_setting =false;
-					LCD_LOG_INFO("%s:Waiting for LCD resume ,then set cabc mode =%d\n",__func__,last_cabc_mode.mode);
+					pr_info("%s:Waiting for LCD resume ,then set cabc mode =%d\n",__func__,last_cabc_mode.mode);
 				}
 				#endif
 			}
@@ -1479,7 +1467,7 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 			    max77819_update_brightness(0x00);
 			}
 			mfd->frame_updated = 0;
-			LCD_LOG_INFO("%s: frame_updated fb%d setted to 0 when panel off blank_mode=%d \n",__func__,mfd->index,blank_mode);
+			pr_info("%s: frame_updated fb%d setted to 0 when panel off blank_mode=%d \n",__func__,mfd->index,blank_mode);
 #endif
 			complete(&mfd->power_off_comp);
 		/* avoid APR web LCD report log mistakenly*/
@@ -2445,10 +2433,6 @@ static void __mdss_fb_wait_for_fence_sub(struct msm_sync_pt_data *sync_pt_data,
 	}
 
 	if (ret < 0) {
-/* report fence dsm error */
-#ifdef CONFIG_HUAWEI_LCD
-		lcd_report_dsm_err(DSM_LCD_MDSS_FENCE_ERROR_NO,ret,0);
-#endif
 		pr_err("%s: sync_fence_wait failed! ret = %x\n",
 				sync_pt_data->fence_name, ret);
 		for (; i < fence_cnt; i++)
@@ -2765,13 +2749,7 @@ static int __mdss_fb_perform_commit(struct msm_fb_data_type *mfd)
 #ifdef CONFIG_HUAWEI_LCD
 	if(!mfd->frame_updated){
 		mfd->frame_updated = 1;
-/* remove APR web LCD report log information  */
-#ifdef CONFIG_HUAWEI_DSM
-		lcd_pwr_status.lcd_dcm_pwr_status |= BIT(2);
-		do_gettimeofday(&lcd_pwr_status.tvl_set_frame);
-		time_to_tm(lcd_pwr_status.tvl_set_frame.tv_sec, 0, &lcd_pwr_status.tm_set_frame);
-#endif
-		LCD_LOG_INFO("%s:begin to display the first frame.\n",__func__);
+		pr_info("%s:begin to display the first frame.\n",__func__);
 #ifdef CONFIG_LOG_JANK
         LOG_JANK_V(JL_HWC_LCD_FIRSTFRAME_START, "%s#T:%5lu", "JL_HWC_LCD_FIRSTFRAME_START",getrealtime());
 #endif
@@ -3155,7 +3133,7 @@ static int mdss_fb_config_cabc(struct msm_fb_data_type *mfd,struct msmfb_cabc_co
 	}
 	else
 	{
-		LCD_LOG_ERR("This panel can not support auto cabc function\n");
+		pr_err("This panel can not support auto cabc function\n");
 		ret = -EINVAL;
 	}
 
@@ -3434,7 +3412,7 @@ int mdss_fb_do_ioctl(struct fb_info *info, unsigned int cmd,
 		ret = copy_from_user(&cabc_cfg, argp, sizeof(cabc_cfg));
 		if (ret)
 		{
-			LCD_LOG_ERR( "%s:MSMFB_AUTO_CABC ioctl failed \n",
+			pr_err( "%s:MSMFB_AUTO_CABC ioctl failed \n",
 			 __func__);
 			return ret;
 		}
@@ -3446,7 +3424,7 @@ int mdss_fb_do_ioctl(struct fb_info *info, unsigned int cmd,
 		{
 			last_cabc_mode = cabc_cfg;
 			last_cabc_setting =true;
-			LCD_LOG_INFO("%s:MSMFB_AUTO_CABC save last setting \n",
+			pr_info("%s:MSMFB_AUTO_CABC save last setting \n",
 				__func__);
 		}
 		else
@@ -3460,13 +3438,13 @@ int mdss_fb_do_ioctl(struct fb_info *info, unsigned int cmd,
 	case MSMFB_DISPLAY_INVERSION:
 		ret = copy_from_user(&lcd_display_inversion, argp, sizeof(lcd_display_inversion));
 		if (ret){
-			LCD_LOG_ERR("%s:MSMFB_DISPLAY_INVERSION copy from user failed \n", __func__);
+			pr_err("%s:MSMFB_DISPLAY_INVERSION copy from user failed \n", __func__);
 			return ret;
 		}
 
 		ret = msm_fb_set_display_inversion(mfd, lcd_display_inversion);
 		if (ret){
-			LCD_LOG_ERR("%s:set display inversion is failed and ERROR= %d \n", __func__, ret);
+			pr_err("%s:set display inversion is failed and ERROR= %d \n", __func__, ret);
 			return ret;
 		}
 		break;
