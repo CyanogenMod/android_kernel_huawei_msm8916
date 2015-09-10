@@ -2731,18 +2731,9 @@ static int synaptics_rmi4_f11_gesture_report(struct synaptics_rmi4_data *rmi4_da
 		}
 #endif/*REPORT_GESTURE_LOCUS*/
 
-		/*
-		* New solution, reporting Power_Key is cannceled.
-		*input_report_key(rmi4_data->input_dev,KEY_POWER, 1);
-		*input_sync(rmi4_data->input_dev);
-		*input_report_key(rmi4_data->input_dev,KEY_POWER, 0);
-		*input_sync(rmi4_data->input_dev);
-		*/
-
-		tp_log_warning("%s:reprot_gesture_key_value = %d\n",__func__, reprot_gesture_key_value);
-		input_report_key(rmi4_data->input_dev,reprot_gesture_key_value, 1);
+		input_report_key(rmi4_data->input_dev,KEY_POWER, 1);
 		input_sync(rmi4_data->input_dev);
-		input_report_key(rmi4_data->input_dev,reprot_gesture_key_value, 0);
+		input_report_key(rmi4_data->input_dev,KEY_POWER, 0);
 		input_sync(rmi4_data->input_dev);
 	}
 	return 0;
