@@ -1179,17 +1179,18 @@ static void *def_msm8x16_wcd_mbhc_cal(void)
 	btn_low[4] = 137;
 	btn_high[4] = 137;
 #else
+	/* temporary reset button range for huawei three button headset */
 	/* reset button range for huawei three button headset */
-	btn_low[0] = 0;
-	btn_high[0] = 87;
-	btn_low[1] = 87;
-	btn_high[1] = 212;
-	btn_low[2] = 212;
-	btn_high[2] = 330;
-	btn_low[3] = 330;
-	btn_high[3] = 330;
-	btn_low[4] = 330;
-	btn_high[4] = 330;
+	btn_low[0] = 75;
+	btn_high[0] = 75;
+	btn_low[1] = 212;
+	btn_high[1] = 225;
+	btn_low[2] = 350;
+	btn_high[2] = 375;
+	btn_low[3] = 400;
+	btn_high[3] = 400;
+	btn_low[4] = 450;
+	btn_high[4] = 425;
 #endif
 
 	return msm8x16_wcd_cal;
