@@ -16,6 +16,7 @@
 #include <asm/uaccess.h>
 #include <asm/page.h>
 
+
 /*
  * seq_files have a buffer which can may overflow. When this happens a larger
  * buffer is reallocated and all the data will be printed again.
@@ -41,14 +42,6 @@ static void *seq_buf_alloc(unsigned long size)
 		buf = kmalloc(size, GFP_KERNEL | __GFP_NOWARN);
 
 	return buf;
-}
-
-static void kvfree(const void *addr)
-{
-	if (is_vmalloc_addr(addr))
-		vfree(addr);
-	else
-		kfree(addr);
 }
 
 /**
