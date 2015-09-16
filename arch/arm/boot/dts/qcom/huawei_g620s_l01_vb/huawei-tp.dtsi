@@ -71,7 +71,6 @@
 				/* KEY_MENU */
 				139 578 1342 150 100>;
 
-			/*G620S-L series synaptics TP no need support gestrue function*/
 			/* SYNAPTICS_WAKE_UP_GESTURE_FLAG:'1'->enabled,'0'->disabled */
 			/*IC flash is not enough for holster,so fw del one gesture*/
 			synaptics,gesture_enabled = <0>;
@@ -88,7 +87,7 @@
 			/* bit9  Single finger write letter m                 */
 			/* bit10 Single finger write letter w                 */
 			/* bit11 Palm off screen                                */
-			synaptics,easy_wakeup_supported_gestures = <0x0>;
+			synaptics,easy_wakeup_supported_gestures = <0xF81>;
 
 			/*Defination of report key value  for different gestures*/
 			synaptics,easy_wakeup_gesture_keys = 
