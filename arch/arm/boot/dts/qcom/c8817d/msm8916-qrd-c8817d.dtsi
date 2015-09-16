@@ -284,7 +284,7 @@
 			reg = <0x70>;
 			interrupt-parent = <&msm_gpio>;
 			interrupts = <13 0x2008>;
-			vdd-supply = <&vdd_vreg>;
+			vdd-supply = <&pm8916_l17>;
 			vcc_i2c-supply = <&pm8916_l16>;
 			/* pins used by touchscreen */
 			pinctrl-names = "pmx_ts_active","pmx_ts_suspend","pmx_ts_suspend";
