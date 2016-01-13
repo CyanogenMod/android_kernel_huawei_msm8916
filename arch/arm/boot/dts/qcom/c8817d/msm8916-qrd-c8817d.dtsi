@@ -317,6 +317,17 @@
 		qcom,panel-maxy = <1385>;
 		qcom,key-codes = <158 172 139>;
 	};
+
+	qcom,mdss_dsi@1a98000 {
+		qcom,platform-reset-gpio = <&msm_gpio 25 0>;
+		qcom,platform-te-gpio = <&msm_gpio 24 0>;
+	};
+
+	pinctrl@1000000 {
+		usb-id-pin {
+			qcom,pins = <&gp 117>;
+		};
+	};
 };
 
 &pm8916_vadc {
@@ -334,7 +345,7 @@
 &pm8916_chg {
 	qcom,vddmax-mv = <4350>;
 	qcom,vddsafe-mv = <4380>;
-	qcom,vinmin-mv = <4470>;
+	qcom,vinmin-mv = <4389>;
 	qcom,batt-hot-percentage = <35>;
 	qcom,batt-cold-percentage = <70>;
 	qcom,tchg-mins = <360>;
