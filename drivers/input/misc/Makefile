@@ -87,6 +87,8 @@ obj-$(CONFIG_SENSORS_BMM050)    += bmm050_driver.o bmm050.o
 obj-$(CONFIG_SENSORS_BMG)       += bmg160_driver.o bmg160.o
 obj-$(CONFIG_SENSORS_LTR559)    += ltr559.o
 
+obj-$(CONFIG_HUAWEI_ACCEL_SENSORS_KIONIX)		+= kionix_accel_hw.o
+
 ifeq ($(CONFIG_SENSORS_BMA2X2_ENABLE_INT1),y)
 	EXTRA_CFLAGS += -DBMA2X2_ENABLE_INT1
 endif
