@@ -397,9 +397,9 @@ static void kionix_accel_report_accel_data(struct kionix_accel_driver *acceld)
 			}
 			else {
 				write_lock(&acceld->rwlock_accel_data);
-				x = ((s16) le16_to_cpu(accel_data.accel_data_s16[acceld->axis_map_x])) >> acceld->shift;
-				y = ((s16) le16_to_cpu(accel_data.accel_data_s16[acceld->axis_map_y])) >> acceld->shift;
-				z = ((s16) le16_to_cpu(accel_data.accel_data_s16[acceld->axis_map_z])) >> acceld->shift;
+				x = ((s16) le16_to_cpu(accel_data.accel_data_s16[acceld->axis_map_x])) << acceld->shift;
+				y = ((s16) le16_to_cpu(accel_data.accel_data_s16[acceld->axis_map_y])) << acceld->shift;
+				z = ((s16) le16_to_cpu(accel_data.accel_data_s16[acceld->axis_map_z])) << acceld->shift;
 
 				acceld->accel_data[acceld->axis_map_x] = (acceld->negate_x ? -x : x) + acceld->accel_cali[acceld->axis_map_x];
 				acceld->accel_data[acceld->axis_map_y] = (acceld->negate_y ? -y : y) + acceld->accel_cali[acceld->axis_map_y];
@@ -482,12 +482,12 @@ static void kionix_accel_update_g_range(struct kionix_accel_driver *acceld)
 			acceld->accel_registers[accel_ctrl_reg1] |= ACCEL_G_8G;
 			break;
 		case KIONIX_ACCEL_G_4G:
-			acceld->shift = 3;
+			acceld->shift = 1;
 			acceld->accel_registers[accel_ctrl_reg1] |= ACCEL_G_4G;
 			break;
 		case KIONIX_ACCEL_G_2G:
 		default:
-			acceld->shift = 4;
+			acceld->shift = 0;
 			acceld->accel_registers[accel_ctrl_reg1] |= ACCEL_G_2G;
 			break;
 	}
