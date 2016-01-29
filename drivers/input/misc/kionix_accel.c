@@ -385,6 +385,7 @@ static void kionix_accel_report_accel_data(struct kionix_accel_driver *acceld)
 	}; } accel_data;
 	s16 x, y, z;
 	int err;
+	ktime_t timestamp;
 		/*delete it , use short code segment */
 
 	/* Only read the output registers if enabled */
@@ -426,9 +427,12 @@ static void kionix_accel_report_accel_data(struct kionix_accel_driver *acceld)
 				KIONIX_DBG( "%s: report x data = %d", __func__, acceld->accel_data[acceld->axis_map_x]);
 				KIONIX_DBG( "%s: report y data = %d", __func__, acceld->accel_data[acceld->axis_map_y]);
 				KIONIX_DBG( "%s: report z data = %d", __func__, acceld->accel_data[acceld->axis_map_z]);
+				timestamp = ktime_get_boottime();
 				input_report_abs(acceld->input_dev, ABS_X, acceld->accel_data[acceld->axis_map_x]);
 				input_report_abs(acceld->input_dev, ABS_Y, acceld->accel_data[acceld->axis_map_y]);
 				input_report_abs(acceld->input_dev, ABS_Z, acceld->accel_data[acceld->axis_map_z]);
+				input_event(acceld->input_dev, EV_SYN, SYN_TIME_SEC, ktime_to_timespec(timestamp).tv_sec);
+				input_event(acceld->input_dev, EV_SYN, SYN_TIME_NSEC, ktime_to_timespec(timestamp).tv_nsec);
 				input_sync(acceld->input_dev);
 				if(acceld->print_xyz_flag)
 				{
