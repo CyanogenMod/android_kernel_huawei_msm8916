@@ -1246,7 +1246,7 @@ static int  kionix_verify_and_set_callback_func(struct kionix_accel_driver *acce
 static int kionix_acc_poll_delay_set(struct sensors_classdev *sensors_cdev,
 	unsigned int delay_msec)
 {
-	struct kionix_accel_driver*acc = container_of(sensors_cdev,
+	struct kionix_accel_driver *acc = container_of(sensors_cdev,
 		struct kionix_accel_driver, cdev);
 	int err;
 	unsigned char reg_buf[4];
@@ -1281,7 +1281,7 @@ static int kionix_acc_poll_delay_set(struct sensors_classdev *sensors_cdev,
 static int kionix_acc_enable_set(struct sensors_classdev *sensors_cdev,
 	unsigned int enable)
 {
-	struct kionix_accel_driver*acc = container_of(sensors_cdev,
+	struct kionix_accel_driver *acc = container_of(sensors_cdev,
 		struct kionix_accel_driver, cdev);
 	int err;
 
@@ -1645,7 +1645,7 @@ static int  kionix_accel_remove(struct i2c_client *client)
 static int kionix_acc_resume(struct i2c_client *client)
 {
 	int ret = 0;
-	struct kionix_accel_driver*acc = i2c_get_clientdata(client);
+	struct kionix_accel_driver *acc = i2c_get_clientdata(client);
 
 	if (acc->on_before_suspend){
 		/* add necessary log */
