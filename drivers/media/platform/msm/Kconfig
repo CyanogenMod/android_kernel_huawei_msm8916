@@ -33,8 +33,20 @@ config MSMB_CAMERA_DEBUG
 	---help---
 	  Enable printk() debug for msm camera 2.0
 
+menuconfig HUAWEI_KK_CAMERA
+	bool "Huawei MSM8916 Kitkat camera stack"
+	depends on ARCH_MSM && VIDEO_V4L2 && I2C && MSMB_CAMERA && MACH_HUAWEI_MSM8916
+	default y
+	---help---
+	  Say Y here to use huawei msm8916 kitkat camera stack instead.
+
 if MSMB_CAMERA
+if HUAWEI_KK_CAMERA
+source "drivers/media/platform/msm/camera_v2_cherry/Kconfig"
+endif
+if !HUAWEI_KK_CAMERA
 source "drivers/media/platform/msm/camera_v2/Kconfig"
+endif
 endif # MSMB_CAMERA
 
 source "drivers/media/platform/msm/vidc/Kconfig"
