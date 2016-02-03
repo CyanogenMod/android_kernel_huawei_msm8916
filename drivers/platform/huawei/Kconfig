@@ -21,4 +21,28 @@ config MACH_C8817D
 	help
 	  Support for Huawei C8817D variant
 
+config MACH_C8817E
+	bool "C8817E board"
+	select MACH_HUAWEI_MSM8916
+	help
+	  Support for Huawei C8817E variant
+
+config MACH_G620S_UL00
+	bool "G620S_UL00 board"
+	select MACH_HUAWEI_MSM8916
+	help
+	  Support for Huawei G620S_UL00 variant
+
+config MACH_G620S_L01
+	bool "G620S_L01 board"
+	select MACH_HUAWEI_MSM8916
+	help
+	  Support for Huawei G620S_L01 variant
+
+config MACH_G621_TL00
+	bool "G621_TL00 board"
+	select MACH_HUAWEI_MSM8916
+	help
+	  Support for Huawei G621_TL00 variant
+
 endmenu
