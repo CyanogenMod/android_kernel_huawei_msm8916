@@ -89,6 +89,18 @@ else ifeq ($(CONFIG_MACH_HUAWEI_MSM8916),y)
 ifeq ($(CONFIG_MACH_C8817D),y)
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-c8817d.dtb
 endif
+ifeq ($(CONFIG_MACH_C8817E),y)
+dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-c8817e.dtb
+endif
+ifeq ($(CONFIG_MACH_G620S_UL00),y)
+dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-g620s_ul.dtb
+endif
+ifeq ($(CONFIG_MACH_G620S_L01),y)
+dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-g620s_l01.dtb
+endif
+ifeq ($(CONFIG_MACH_G621_TL00),y)
+dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-g621_tl00.dtb
+endif
 else
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-cdp.dtb \
 	msm8916-cdp-smb1360.dtb \
