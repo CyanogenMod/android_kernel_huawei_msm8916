@@ -44,3 +44,13 @@
 				"AMIC3", "MIC BIAS External";
 	};
 };
+
+/ {
+	huawei_fac_info {
+		compatible = "huawei,hw_fac_info";
+		fac,product_name = "HUAWEI C8817D";
+		fac,hardware_ver = "HL1C8817EM0";
+		fac,software_ver = "MSM8916_C8817D_VC";
+		status = "ok";
+	};
+};
