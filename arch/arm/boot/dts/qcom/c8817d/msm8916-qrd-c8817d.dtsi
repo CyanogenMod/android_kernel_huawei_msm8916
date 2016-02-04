@@ -337,7 +337,7 @@
 
 &pm8916_vadc {
 	chan@30 {
-		qcom,scale-function = <10>;
+		qcom,scale-function = <11>;
 	};
 };
 
@@ -421,6 +421,23 @@
 
 	chan@36 {
 		qcom,scale-function = <10>;
+	};
+};
+
+&rpm_bus {
+	rpm-regulator-smpa4 {
+		pm8916_s4: regulator-s4 {
+			regulator-min-microvolt = <2100000>;
+			qcom,init-voltage = <2100000>;
+		};
+	};
+
+	rpm-regulator-ldoa8 {
+		pm8916_l8: regulator-l8 {
+			regulator-min-microvolt = <2950000>;
+			regulator-max-microvolt = <2950000>;
+			qcom,init-voltage = <2950000>;
+		};
 	};
 };
 
