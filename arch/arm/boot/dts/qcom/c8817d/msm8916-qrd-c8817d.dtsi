@@ -337,7 +337,7 @@
 
 &pm8916_vadc {
 	chan@30 {
-		qcom,scale-function = <10>;
+		qcom,scale-function = <11>;
 	};
 };
 
