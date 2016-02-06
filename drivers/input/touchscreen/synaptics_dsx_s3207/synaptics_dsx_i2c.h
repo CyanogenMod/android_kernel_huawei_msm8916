@@ -288,6 +288,7 @@ struct synaptics_rmi4_data {
 	bool sensor_sleep;
 	bool stay_awake;
 	bool staying_awake;
+	bool keypad_enable;
 	char product_id[SYNAPTICS_RMI4_PRODUCT_ID_SIZE + 1];
 	int (*i2c_read)(struct synaptics_rmi4_data *pdata, unsigned short addr,
 			unsigned char *data, unsigned short length);

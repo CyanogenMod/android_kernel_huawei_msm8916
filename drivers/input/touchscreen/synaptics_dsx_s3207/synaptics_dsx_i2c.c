@@ -312,6 +312,12 @@ static ssize_t synaptics_easy_wakeup_position_show(struct device *dev,
 		struct device_attribute *attr, char *buf);
 static ssize_t synaptics_easy_wakeup_position_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size);
+#ifdef ENABLE_VIRTUAL_KEYS
+static ssize_t synaptics_keypad_enable_show(struct device *dev,
+		struct device_attribute *attr, char *buf);
+static ssize_t synaptics_keypad_enable_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size);
+#endif
 
 struct synaptics_rmi4_f01_device_status {
 	union {
@@ -550,6 +556,11 @@ static struct device_attribute attrs[] = {
 	__ATTR(easy_wakeup_supported_gestures, S_IRUGO,
 			synaptics_easy_wakeup_supported_gestures_show,
 			synaptics_rmi4_store_error),
+#ifdef ENABLE_VIRTUAL_KEYS
+	__ATTR(keypad_enable, (S_IRUGO | S_IWUSR|S_IWGRP),
+			synaptics_keypad_enable_show,
+			synaptics_keypad_enable_store),
+#endif
 };
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -5981,6 +5992,38 @@ static void free_virtual_keys(struct syanptics_virtual_keys *vkeys)
 	kfree(vkeys->kobj_attr.attr.name);
 	vkeys->kobj_attr.attr.name = NULL;
 }
+
+static ssize_t synaptics_keypad_enable_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			(rmi4_data->keypad_enable));
+}
+
+static ssize_t synaptics_keypad_enable_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct synaptics_rmi4_data *rmi4_data = dev_get_drvdata(dev);
+	struct synaptics_dsx_platform_data *platform_data =
+			rmi4_data->board;
+	struct device_node *np = dev->of_node;
+	unsigned int input;
+
+	if (sscanf(buf, "%u", &input) != 1)
+		return -EINVAL;
+
+	input = (input == 0 ? 0 : 1);
+	rmi4_data->keypad_enable = input;
+
+	if (input)
+		setup_virtual_keys(np, DRIVER_NAME,&platform_data->vkeys);
+	else
+		free_virtual_keys(&platform_data->vkeys);
+
+	return count;
+}
 #endif /*ENABLE_VIRTUAL_KEYS*/
 
 static struct syanptics_wakeup_keys *create_and_get_wakeup_keys(
@@ -6910,6 +6953,9 @@ static int synaptics_rmi4_probe(struct i2c_client *client,
 	rmi4_data->sensor_sleep = false;
 	rmi4_data->irq_enabled = false;
 	rmi4_data->fingers_on_2d = false;
+#ifdef ENABLE_VIRTUAL_KEYS
+	rmi4_data->keypad_enable = true;
+#endif
 #if USE_WAKEUP_GESTURE
 	rmi4_data->gesture_enabled = platform_data->gesture_enabled;
 	rmi4_data->palm_enabled = false;
