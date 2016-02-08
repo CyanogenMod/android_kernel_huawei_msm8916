@@ -436,3 +436,11 @@
 	qcom,vdd-current-level = <4000 400000>;
 };
 
+&spmi_bus {
+	qcom,pm8916@0 {
+		pm8916_rtc: qcom,pm8916_rtc {
+			qcom,qpnp-rtc-alarm-pwrup = <1>;
+		};
+	};
+};
+
