@@ -92,6 +92,36 @@ static int gpio_blink_set(struct led_classdev *led_cdev,
 						delay_on, delay_off);
 }
 
+extern void led_stop_software_blink(struct led_classdev *led_cdev);
+static ssize_t gpio_blink_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t len)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	unsigned long blinking, onMS = 1000, offMS = 1000;
+	ssize_t ret = -EINVAL;
+
+	ret = kstrtoul(buf, 10, &blinking);
+	if (ret)
+		return ret;
+
+	if (!blinking)
+		led_stop_software_blink(led_cdev);
+	else
+		led_blink_set(led_cdev, &onMS, &offMS);
+	return len;
+}
+DEVICE_ATTR(blink, 0664, NULL, gpio_blink_store);
+
+static struct attribute *gpio_led_attributes[] = {
+	&dev_attr_blink.attr,
+	NULL,
+};
+
+static struct attribute_group gpio_led_attr_group = {
+	.attrs = gpio_led_attributes
+};
+
 static int create_gpio_led(const struct gpio_led *template,
 	struct gpio_led_data *led_dat, struct device *parent,
 	int (*blink_set)(unsigned, int, unsigned long *, unsigned long *))
@@ -140,6 +170,11 @@ static int create_gpio_led(const struct gpio_led *template,
 	if (ret < 0)
 		return ret;
 
+	ret = sysfs_create_group(&led_dat->cdev.dev->kobj,
+			&gpio_led_attr_group);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 
@@ -147,6 +182,8 @@ static void delete_gpio_led(struct gpio_led_data *led)
 {
 	if (!gpio_is_valid(led->gpio))
 		return;
+	sysfs_remove_group(&led->cdev.dev->kobj,
+			&gpio_led_attr_group);
 	led_classdev_unregister(&led->cdev);
 	cancel_work_sync(&led->work);
 }
