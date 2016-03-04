@@ -247,6 +247,7 @@
 			 06 01 00 01 05 00 02 0B 00
 			 06 01 00 01 05 00 02 0C 07
 			 06 01 00 01 05 00 02 0D 00];
+		qcom,esd-read-cmds-state = "dsi_lp_mode";
 		qcom,mdss-dsi-lp11-init;
 		qcom,mdss-pan-physical-width-dimension = <62>;
 		qcom,mdss-pan-physical-height-dimension = <110>;
