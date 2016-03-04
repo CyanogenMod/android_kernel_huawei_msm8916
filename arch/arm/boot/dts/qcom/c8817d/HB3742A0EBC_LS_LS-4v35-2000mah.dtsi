@@ -123,9 +123,9 @@ qcom,qrd-4v35-2000mAh-lishen-data {
 	qcom,ibat-acc-lut {
 		qcom,lut-col-legend = <(-20) 0 25>;
 		qcom,lut-row-legend = <0 250 500 1000>; 
-		qcom,lut-data = <2000 2005 2026>,
-				<120 1700 2010>,
-				<6 1444 1993>,
-				<6 1003 1950>;
+		qcom,lut-data = <2020 2025 2026>,
+				<460 1921 2010>,
+				<197 1734 1993>,
+				<6 1203 1950>;
 	};
 };
