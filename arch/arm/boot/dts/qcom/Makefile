@@ -96,6 +96,16 @@ endif
 ifeq ($(CONFIG_MACH_G621_TL00),y)
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-g621_tl00.dtb
 endif
+ifeq ($(CONFIG_MACH_CHE1_CL10),y)
+dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-che1-cl10_vb.dtb \
+	msm8916-qrd-che1-cl10_vc.dtb \
+	msm8916-qrd-che1-cl10_vd.dtb
+endif
+ifeq ($(CONFIG_MACH_CHE1_CL20),y)
+dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-che1-cl20_vb.dtb \
+	msm8916-qrd-che1-cl20_vc.dtb \
+	msm8916-qrd-che1-cl20_vd.dtb
+endif
 else
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-cdp.dtb \
 	msm8916-cdp-smb1360.dtb \
