@@ -45,4 +45,22 @@ config MACH_G621_TL00
 	help
 	  Support for Huawei G621_TL00 variant
 
+config MACH_CHE1_CL10
+	bool "CHE1_CL10 board"
+	select MACH_HUAWEI_MSM8916
+	help
+	  Support for Huawei CHE1_CL10 variant
+
+config MACH_CHE1_CL20
+	bool "CHE1_CL20 board"
+	select MACH_HUAWEI_MSM8916
+	help
+	  Support for Huawei CHE1_CL20 variant
+
+config MACH_CHE1_L04
+	bool "CHE1_L04 board"
+	select MACH_HUAWEI_MSM8916
+	help
+	  Support for Huawei CHE1_L04 variant
+
 endmenu
