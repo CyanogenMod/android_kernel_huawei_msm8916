@@ -1,0 +1,61 @@
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+
+#include "msm8916-qrd.dtsi"
+#include "msm8916-memory.dtsi"
+#include "cherry/msm8916-qrd-cherry.dtsi"
+
+/ {
+	model = "Qualcomm MSM 8916 HUAWEI Che1-CL20";
+	compatible = "qcom,msm8916-qrd-skuh", "qcom,msm8916-qrd", "qcom,msm8916", "qcom,qrd";
+	qcom,board-id = <8114 0>, <8114 4>;
+	huawei,modem_id = <0xFFFC010D 0x0>;
+};
+
+&mdss_dsi0 {
+	qcom,dsi-pref-prim-pan = <&dsi_boe_nt35521_5p5_720pxa_video>;
+	
+};
+
+&soc {
+	sound {
+		qcom,msm-micbias1-ext-cap;
+		qcom,msm-hs-micbias-type = "external";
+		qcom,audio-routing =
+				"RX_BIAS", "MCLK",
+				"SPK_RX_BIAS", "MCLK",
+				"INT_LDO_H", "MCLK",
+				"MIC BIAS External", "Handset Mic",
+				"MIC BIAS External2", "Headset Mic",
+				"MIC BIAS External", "Secondary Mic",
+				"AMIC1", "MIC BIAS External",
+				"AMIC2", "MIC BIAS External2",
+				"AMIC3", "MIC BIAS External";
+	};
+
+	huawei,huawei-gpio-info {
+		compatible = "huawei-gpio-info";
+		huawei,voltage-active-low;
+	};
+};
+
+/ {
+	huawei_fac_info {
+		compatible = "huawei,hw_fac_info";
+		fac,product_name = "HUAWEI Che1-CL20";
+		fac,hardware_ver = "HL2CHERRYM";
+		fac,software_ver = "MSM8916_Che1-CL20_VC";
+		status = "ok";
+	};
+};
