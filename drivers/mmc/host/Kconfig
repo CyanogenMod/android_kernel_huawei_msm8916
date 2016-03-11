@@ -651,3 +651,10 @@ config MMC_REALTEK_PCI
 	help
 	  Say Y here to include driver code to support SD/MMC card interface
 	  of Realtek PCI-E card reader
+
+config CONFIG_HUAWEI_MMC
+	tristate "Support Huawei gpio info by DTS Setting"
+	depends on MMC_SDHCI
+	help
+	  Say Y here to include driver code to support Huawei gpio info
+	  by DTS Setting
