@@ -139,6 +139,9 @@ int wcnss_set_wlan_unsafe_channel(
 int wcnss_get_wlan_unsafe_channel(
 				u16 *unsafe_ch_list, u16 buffer_size,
 				u16 *ch_count);
+#ifdef CONFIG_MACH_HUAWEI
+void wcnss_get_nv_file(char *nv_path, int size);
+#endif
 #define wcnss_wlan_get_drvdata(dev) dev_get_drvdata(dev)
 #define wcnss_wlan_set_drvdata(dev, data) dev_set_drvdata((dev), (data))
 /* WLAN driver uses these names */
