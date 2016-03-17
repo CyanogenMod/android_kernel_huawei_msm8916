@@ -43,6 +43,10 @@
 
 #include <soc/qcom/smd.h>
 
+#ifdef CONFIG_MACH_HUAWEI
+#include <linux/config_interface.h>
+#endif
+
 #define DEVICE "wcnss_wlan"
 #define CTRL_DEVICE "wcnss_ctrl"
 #define VERSION "1.01"
@@ -2318,6 +2322,24 @@ static void wcnss_pm_qos_enable_pc(struct work_struct *worker)
 
 static DECLARE_RWSEM(wcnss_pm_sem);
 
+#ifdef CONFIG_MACH_HUAWEI
+#define NAME_LEN 32
+#define NVBIN_FILE_4X "wlan/prima/WCNSS_qcom_wlan_nv_4x.bin"
+
+void wcnss_get_nv_file(char *nv_file, int size)
+{
+	char huawei_product_name[NAME_LEN];
+	int ret = 0;
+
+	ret = get_product_name(huawei_product_name, NAME_LEN);
+	if (strstr(huawei_product_name, "Che1") != NULL)
+		strlcpy(nv_file, NVBIN_FILE_4X, size);
+	else
+		strlcpy(nv_file, NVBIN_FILE, size);
+}
+EXPORT_SYMBOL(wcnss_get_nv_file);
+#endif
+
 static void wcnss_nvbin_dnld(void)
 {
 	int ret = 0;
@@ -2331,9 +2353,24 @@ static void wcnss_nvbin_dnld(void)
 	unsigned int nv_blob_size = 0;
 	const struct firmware *nv = NULL;
 	struct device *dev = &penv->pdev->dev;
+#ifdef CONFIG_MACH_HUAWEI
+	char huawei_wlan_nv_file[40];
+#endif
 
 	down_read(&wcnss_pm_sem);
 
+#ifdef CONFIG_MACH_HUAWEI
+	wcnss_get_nv_file(huawei_wlan_nv_file, sizeof(huawei_wlan_nv_file));
+	pr_info("wcnss: Get nv file from %s\n", huawei_wlan_nv_file);
+
+	ret = request_firmware(&nv, huawei_wlan_nv_file, dev);
+
+	if (ret || !nv || !nv->data || !nv->size) {
+		pr_err("wcnss: %s: request_firmware failed for %s\n",
+			__func__, huawei_wlan_nv_file);
+		goto out;
+	}
+#else
 	ret = request_firmware(&nv, NVBIN_FILE, dev);
 
 	if (ret || !nv || !nv->data || !nv->size) {
@@ -2341,6 +2378,7 @@ static void wcnss_nvbin_dnld(void)
 			__func__, NVBIN_FILE, ret);
 		goto out;
 	}
+#endif
 
 	/* First 4 bytes in nv blob is validity bitmap.
 	 * We cannot validate nv, so skip those 4 bytes.
