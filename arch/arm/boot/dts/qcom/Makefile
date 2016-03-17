@@ -72,7 +72,10 @@ dtb-$(CONFIG_ARCH_MSM8909) += msm8909-sim.dtb \
 	apq8009w-cdp.dtb \
 	apq8009-mtp-wcd9326.dtb \
 	msm8909-mtp-wcd9326.dtb \
-	msm8909-mtp-wcd9326-refboard.dtb
+	msm8909-mtp-wcd9326-refboard.dtb \
+	msm8909-512mb-mtp-wcd9326-refboard.dtb \
+	apq8009-mtp-wcd9326-refboard.dtb \
+	apq8009-512mb-mtp-wcd9326-refboard.dtb
 
 ifeq ($(CONFIG_MACH_CKT_MSM8939),y)
 dtb-$(CONFIG_ARCH_MSM8916) += msm8939-spirit.dtb
@@ -80,6 +83,8 @@ else ifeq ($(CONFIG_MACH_HAIER_MSM8916),y)
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-g36c1h.dtb
 else ifeq ($(CONFIG_MACH_LONGCHEER_MSM8916),y)
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-l8150.dtb
+else ifeq ($(CONFIG_MACH_HUAQIN_MSM8916),y)
+dtb-$(CONFIG_ARCH_MSM8916) += msm8916-ql790.dtb
 else ifeq ($(CONFIG_MACH_HUAWEI_MSM8916),y)
 ifeq ($(CONFIG_MACH_C8817D),y)
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-c8817d.dtb

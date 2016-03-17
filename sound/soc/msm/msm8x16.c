@@ -1,4 +1,4 @@
- /* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ /* Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -372,8 +372,10 @@ static const struct snd_soc_dapm_widget msm8x16_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Handset Mic", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Secondary Mic", NULL),
+	SND_SOC_DAPM_MIC("Digital Mic0", NULL),
 	SND_SOC_DAPM_MIC("Digital Mic1", NULL),
 	SND_SOC_DAPM_MIC("Digital Mic2", NULL),
+	SND_SOC_DAPM_MIC("Digital Mic3", NULL),
 };
 
 static char const *rx_bit_format_text[] = {"S16_LE", "S24_LE"};
@@ -1621,6 +1623,18 @@ static void *def_msm8x16_wcd_mbhc_cal(void)
 	 * 210-290 == Button 2
 	 * 360-680 == Button 3
 	 */
+#if defined CONFIG_MACH_JALEBI
+	btn_low[0] = 0;
+	btn_high[0] = 150;
+	btn_low[1] = 150;
+	btn_high[1] = 150;
+	btn_low[2] = 150;
+	btn_high[2] = 150;
+	btn_low[3] = 150;
+	btn_high[3] = 150;
+	btn_low[4] = 150;
+	btn_high[4] = 150;
+#else
 	btn_low[0] = 75;
 	btn_high[0] = 75;
 	btn_low[1] = 150;
@@ -1631,6 +1645,7 @@ static void *def_msm8x16_wcd_mbhc_cal(void)
 	btn_high[3] = 450;
 	btn_low[4] = 500;
 	btn_high[4] = 500;
+#endif
 
 	return msm8x16_wcd_cal;
 }
@@ -1698,6 +1713,19 @@ static int msm_audrx_init_wcd(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_new_controls(dapm, msm8x16_dapm_widgets,
 				ARRAY_SIZE(msm8x16_dapm_widgets));
 
+	snd_soc_dapm_ignore_suspend(dapm, "Headset Mic");
+	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic0");
+	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic1");
+	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic2");
+	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic3");
+
+	snd_soc_dapm_ignore_suspend(dapm, "AMIC2");
+	snd_soc_dapm_ignore_suspend(dapm, "DMIC0");
+	snd_soc_dapm_ignore_suspend(dapm, "DMIC1");
+	snd_soc_dapm_ignore_suspend(dapm, "DMIC2");
+	snd_soc_dapm_ignore_suspend(dapm, "DMIC3");
+	snd_soc_dapm_ignore_suspend(dapm, "SPK1 OUT");
+	snd_soc_dapm_ignore_suspend(dapm, "SPK2 OUT");
 	snd_soc_dapm_sync(dapm);
 
 	/* start mbhc */
@@ -1778,7 +1806,7 @@ static struct snd_soc_dai_link msm8x16_9326_dai[] = {
 	{ /* FrontEnd DAI Link, CPE Service */
 		.name = "CPE Listen service",
 		.stream_name = "CPE Listen Audio Service",
-		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.cpu_dai_name = "CPE_LSM_NOHOST",
 		.platform_name = "msm-cpe-lsm",
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			SND_SOC_DPCM_TRIGGER_POST},
@@ -1787,7 +1815,6 @@ static struct snd_soc_dai_link msm8x16_9326_dai[] = {
 		.ignore_pmdown_time = 1,
 		.codec_dai_name = "tasha_mad1",
 		.codec_name = "tasha_codec",
-		.ops = &msm8x16_quat_mi2s_be_ops,
 	},
 };
 
@@ -2555,12 +2582,34 @@ static bool msm8x16_swap_gnd_mic(struct snd_soc_codec *codec)
 
 	return true;
 }
+#ifdef CONFIG_MACH_JALEBI
+static int msm8x16_ext_spk_pa_init(struct platform_device *pdev,
+		struct msm8916_asoc_mach_data *pdata)
+{
+	int ret = 0;
 
+	pdata->ext_spk_amp_gpio = of_get_named_gpio(pdev->dev.of_node,
+		"qcom,ext-spk-amp-gpio", 0);
+	if (gpio_is_valid(pdata->ext_spk_amp_gpio)) {
+		ret = gpio_request(pdata->ext_spk_amp_gpio, "ext_spk_amp_gpio");
+		if (ret) {
+			pr_err("%s: gpio_request failed for ext_spk_amp_gpio.\n",
+				__func__);
+			return -EINVAL;
+		}
+		gpio_direction_output(pdata->ext_spk_amp_gpio, 0);
+	}
+	return 0;
+}
+#endif
 static int msm8x16_setup_hs_jack(struct platform_device *pdev,
 			struct msm8916_asoc_mach_data *pdata)
 {
 	struct pinctrl *pinctrl;
 
+#ifdef CONFIG_MACH_JALEBI
+	msm8x16_ext_spk_pa_init(pdev, pdata);
+#endif
 	pdata->us_euro_gpio = of_get_named_gpio(pdev->dev.of_node,
 					"qcom,cdc-us-euro-gpios", 0);
 	if (pdata->us_euro_gpio < 0) {
@@ -3161,6 +3210,10 @@ static int msm8x16_asoc_machine_remove(struct platform_device *pdev)
 		iounmap(pdata->vaddr_gpio_mux_spkr_ctl);
 	if (pdata->vaddr_gpio_mux_mic_ctl)
 		iounmap(pdata->vaddr_gpio_mux_mic_ctl);
+#ifdef CONFIG_MACH_JALEBI
+	if (gpio_is_valid(pdata->ext_spk_amp_gpio))
+		gpio_free(pdata->ext_spk_amp_gpio);
+#endif
 	if (pdata->vaddr_gpio_mux_pcm_ctl)
 		iounmap(pdata->vaddr_gpio_mux_pcm_ctl);
 	snd_soc_unregister_card(card);
