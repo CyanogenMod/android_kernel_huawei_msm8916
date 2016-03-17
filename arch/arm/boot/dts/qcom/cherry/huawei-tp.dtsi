@@ -74,7 +74,7 @@
 
 			/*Defination of report key value  for different gestures*/
 			synaptics,easy_wakeup_gesture_keys = 
-			<	116 /*0.Double tap:KEY_POWER*/
+			<	143 /*0.Double tap:KEY_WAKEUP*/
 				60 /*1.Single finger slide from left to right*/
 				61 /*2.Single finger slide from right to left:KEY_F3*/
 				62 /*3.Single finger slide from top to bottom*/
