@@ -18,6 +18,21 @@
 #include "msm8916-camera-sensor-qrd-c8817d.dtsi"
 #include "huawei-tp.dtsi"
 
+/ {
+	memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		ramoops_mem: ramoops_region@0 {
+			linux,reserve-contiguous-region;
+			linux,reserve-region;
+			reg = <0 0x8cb00000 0 0x00200000>;
+			linux,remove-completely;
+			label = "ramoops_mem";
+		};
+	};
+};
+
 &tlmm_pinmux {
 	akm_reset_pin {
 		qcom,pins = <&gp 36>;
@@ -332,6 +347,17 @@
 		/* Disable HS200 mode */
 		qcom,clk-rates = <400000 25000000 50000000 100000000>;
 		qcom,bus-speed-mode = "DDR_1p8v";
+	};
+
+	ramoops {
+		compatible = "ramoops";
+		status = "ok";
+
+		android,ramoops-buffer-start = <0x8c400000>;
+		android,ramoops-buffer-size = <0x100000>;
+		android,ramoops-console-size = <0x80000>;
+		android,ramoops-record-size = <0x20000>;
+		android,ramoops-dump-oops = <0x1>;
 	};
 };
 
