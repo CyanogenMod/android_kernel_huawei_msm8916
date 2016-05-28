@@ -20,15 +20,12 @@
 
 / {
 	memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-
-		ramoops_mem: ramoops_region@0 {
+		pstore_reserve_mem: pstore_reserve_region@0 {
 			linux,reserve-contiguous-region;
 			linux,reserve-region;
-			reg = <0 0x8cb00000 0 0x00200000>;
 			linux,remove-completely;
-			label = "ramoops_mem";
+			reg = <0x0 0x8c400000 0x0 0x00100000>;
+			label = "pstore_reserve_mem";
 		};
 	};
 };
@@ -353,6 +350,7 @@
 		compatible = "ramoops";
 		status = "ok";
 
+		/* This is tacked at the end of pheripheral_region@0 */
 		android,ramoops-buffer-start = <0x8c400000>;
 		android,ramoops-buffer-size = <0x100000>;
 		android,ramoops-console-size = <0x80000>;
