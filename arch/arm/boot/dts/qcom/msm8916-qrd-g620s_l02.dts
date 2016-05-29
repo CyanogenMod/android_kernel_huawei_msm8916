@@ -17,10 +17,12 @@
 #include "c8817d/msm8916-qrd-c8817d.dtsi"
 
 / {
-	model = "Qualcomm MSM 8916 QRD G620S-L01";
+	model = "Qualcomm MSM 8916 QRD G620S-L02";
 	compatible = "qcom,msm8916-qrd-skuh", "qcom,msm8916-qrd", "qcom,msm8916", "qcom,qrd";
-	qcom,board-id = <8102 0>, <8102 4>,
-			<8104 0>, <8104 4>;
+	qcom,board-id = <8118 0>, <8118 4>,
+			<8120 0>, <8120 4>,
+			<8134 0>, <8134 4>,
+			<8136 0>, <8136 4>;
 };
 
 &mdss_dsi0 {
@@ -50,15 +52,6 @@
 		fac,product_name = "HUAWEI G620S-L01";
 		fac,hardware_ver = "HL1G620SM";
 		fac,software_ver = "MSM8916_G620S-L01_VA";
-		status = "ok";
-	};
-
-	huawei_nfc_info {
-		compatible = "huawei,hw_nfc_info";
-		nfc,clk-src = "BBCLK2";
-		nfc,i2c-freq = "400k";
-		nfc,chip-type = "QCA1990";
-		nfc,dev-type = "c8817e";
 		status = "ok";
 	};
 };

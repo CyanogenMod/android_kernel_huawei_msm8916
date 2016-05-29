@@ -97,6 +97,7 @@ dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-g620s_ul.dtb
 endif
 ifeq ($(CONFIG_MACH_G620S_L01),y)
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-g620s_l01.dtb
+dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-g620s_l02.dtb
 endif
 ifeq ($(CONFIG_MACH_G621_TL00),y)
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-g621_tl00.dtb
