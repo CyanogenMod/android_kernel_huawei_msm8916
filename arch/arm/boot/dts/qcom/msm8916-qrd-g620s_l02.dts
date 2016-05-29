@@ -17,10 +17,12 @@
 #include "c8817d/msm8916-qrd-c8817d.dtsi"
 
 / {
-	model = "Qualcomm MSM 8916 QRD G620S-L01";
+	model = "Qualcomm MSM 8916 QRD G620S-L02";
 	compatible = "qcom,msm8916-qrd-skuh", "qcom,msm8916-qrd", "qcom,msm8916", "qcom,qrd";
-	qcom,board-id = <8102 0>, <8102 4>,
-			<8104 0>, <8104 4>;
+	qcom,board-id = <8118 0>, <8118 4>,
+			<8120 0>, <8120 4>,
+			<8134 0>, <8134 4>,
+			<8136 0>, <8136 4>;
 };
 
 &mdss_dsi0 {
