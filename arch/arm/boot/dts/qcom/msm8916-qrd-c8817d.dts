@@ -53,13 +53,4 @@
 		fac,software_ver = "MSM8916_C8817D_VC";
 		status = "ok";
 	};
-
-	huawei_nfc_info {
-		compatible = "huawei,hw_nfc_info";
-		nfc,clk-src = "BBCLK2";
-		nfc,i2c-freq = "400k";
-		nfc,chip-type = "QCA1990";
-		nfc,dev-type = "c8817d";
-		status = "ok";
-	};
 };
