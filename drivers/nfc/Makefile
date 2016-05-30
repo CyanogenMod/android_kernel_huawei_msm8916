@@ -10,6 +10,5 @@ obj-$(CONFIG_NFC_MEI_PHY)	+= mei_phy.o
 obj-$(CONFIG_NFC_QNCI)		+= nfc-nci.o
 obj-$(CONFIG_NFC_NQ)		+= nq-nci.o
 obj-$(CONFIG_NFC_PN547)		+= pn547.o
-obj-$(CONFIG_MACH_HUAWEI)	+= nfc_adaptive.o
 
 ccflags-$(CONFIG_NFC_DEBUG) := -DDEBUG
