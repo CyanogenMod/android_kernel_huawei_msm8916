@@ -53,3 +53,9 @@
 		status = "ok";
 	};
 };
+
+&i2c_0 { /* BLSP1 QUP2 */
+	akm@c {
+		akm,layout = <0x7>;
+	};
+};
