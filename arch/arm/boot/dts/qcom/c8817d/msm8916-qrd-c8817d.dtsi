@@ -415,7 +415,6 @@
                 /*change s2 timer reset source to hw reset*/
                 qcom,s2-type = <7>; /* hard reset */
                 qcom,use-bark;
-                qcom,support-reset = <1>;
         };
 };
 
