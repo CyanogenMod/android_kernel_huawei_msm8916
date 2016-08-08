@@ -59,12 +59,10 @@
 			29 01 00 00 00 00 03 C0 30 14                                                                                                                                                                                                                                                             
 			29 01 00 00 00 00 02 BC 07
 			29 01 00 00 00 00 08 C9 1F 00 12 1E 81 1E 00
-			29 01 00 00 00 00 02 55 01
 			29 01 00 00 00 00 02 53 24
 			29 01 00 00 00 00 02 51 00
 			29 01 00 00 00 00 02 5E 28
-			05 01 00 00 78 00 02 11 00
-			05 01 00 00 16 00 02 29 00];
+			05 01 00 00 78 00 02 11 00];
 		qcom,mdss-dsi-off-command = [05 01 00 00 14 00 02 28 00
 			05  01  00  00  78  00  02  10  00];
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
@@ -90,12 +88,6 @@
 		qcom,panel-inverse-on-cmds = [05 01 00 00 00 00 02 21 00];
 		qcom,inverse-on-cmds-dsi-state = "dsi_lp_mode";
 		qcom,inverse-off-cmds-dsi-state = "dsi_lp_mode";
-		qcom,panel-cabc-ui-cmds = [15 01 00 00 00 00 02 55 01
-					15 01 00 00 00 00 02 53 24];
-		qcom,panel-cabc-video-cmds = [15 01 00 00 00 00 02 55 03
-					15 01 00 00 00 00 02 53 2C];
-		qcom,cabc-ui-cmds-dsi-state = "dsi_lp_mode";
-		qcom,cabc-video-cmds-dsi-state = "dsi_lp_mode";
 		qcom,panel-dot-inversion-mode-cmds = [39 01 00 00 00 00 0C B2 02 64 10 07 32 1C 08 08 1C 4D 00];
 		qcom,panel-column-inversion-mode-cmds = [39 01 00 00 00 00 0C B2 00 64 10 07 32 1C 08 08 1C 4D 00];
 		qcom,dot-inversion-cmds-dsi-state = "dsi_lp_mode";
@@ -107,6 +99,13 @@
 		huawei,reg-read-expect-value = <0x1C>;
 		huawei,reg-long-read-count = <3>;
 			qcom,mdss-dsi-reset-sequence = <1 1>, <0 20>, <1 120>;
-
+		cm,mdss-livedisplay-cabc-cmd = [
+			29 01 00 00 00 00 02 55 00];
+		cm,mdss-livedisplay-cabc-ui-value = <0x01>;
+		cm,mdss-livedisplay-cabc-image-value = <0x02>;
+		cm,mdss-livedisplay-cabc-video-value = <0x03>;
+		cm,mdss-livedisplay-command-state = "dsi_lp_mode";
+		cm,mdss-livedisplay-post-cmd = [
+			05 01 00 00 16 00 02 29 00];
 	};
 };
