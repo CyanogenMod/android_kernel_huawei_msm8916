@@ -865,7 +865,7 @@ out:
 	pr_err("%s", buf);
 	BUG();
 #else
-	printk_sched("%s", buf);
+	printk_deferred("%s", buf);
 #endif
 }
 
@@ -898,6 +898,7 @@ static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 
 			if (!once) {
 				once = true;
+				
 				dump_throttled_rt_tasks(rt_rq);
 			}
 		} else {
