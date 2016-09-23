@@ -548,3 +548,6 @@
 	};
 };
 
+&pm8916_rtc {
+	qcom,qpnp-rtc-alarm-pwrup = <1>;
+};
