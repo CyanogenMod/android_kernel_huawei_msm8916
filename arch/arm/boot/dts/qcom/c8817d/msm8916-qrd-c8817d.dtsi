@@ -430,3 +430,6 @@
 	qcom,vdd-current-level = <4000 400000>;
 };
 
+&pm8916_rtc {
+	qcom,qpnp-rtc-alarm-pwrup = <1>;
+};
