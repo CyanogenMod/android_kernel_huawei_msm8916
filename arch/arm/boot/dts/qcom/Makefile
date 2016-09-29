@@ -117,7 +117,8 @@ dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-che1-cl20_vb.dtb \
 	msm8916-qrd-che1-cl20_vd.dtb
 endif
 ifeq ($(CONFIG_MACH_CHE1_L04),y)
-dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-che1-l04.dtb
+dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-che1-l04_va.dtb \
+	msm8916-qrd-che1-l04_vb.dtb
 endif
 else
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-cdp.dtb \
