@@ -19,13 +19,12 @@
 / {
 	model = "Qualcomm MSM 8916 HUAWEI Che1-L04";
 	compatible = "qcom,msm8916-qrd-skuh", "qcom,msm8916-qrd", "qcom,msm8916", "qcom,qrd";
-	qcom,board-id = <8034 0> , <8034 4> , <8050 0> , <8050 4>;
+	qcom,board-id = <8034 0> , <8034 4>;
 	huawei,modem_id = <0xFFFC010D 0x0>;
 };
 
 &mdss_dsi0 {
 	qcom,dsi-pref-prim-pan = <&dsi_boe_nt35521_5p5_720pxa_video>;
-	
 };
 
 &soc {
