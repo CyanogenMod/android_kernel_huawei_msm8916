@@ -1160,13 +1160,25 @@ config TOUCHSCREEN_IT7260_I2C
 	  To compile this driver as a module, choose M here: the
 	  module will be called it7258_ts_i2c.
 
+config TOUCHSCREEN_HIMAX_HX852xES
+        bool "Himax touchpanel HX852xES series"
+        depends on I2C
+        help
+          Say Y here if you have a Himax HX852xES touchscreen.
+          HX852xES controllers are multi touch controllers which can
+          report 10 touches at a time.
+
+          If unsure, say N.
+
+source "drivers/input/touchscreen/hx852xes/Kconfig"
+
 menuconfig SYNAPTICS_DSX_S3207
 	bool "synaptics s3207 touch screen driver"
 	depends on I2C && MACH_HUAWEI
 	default y
 	help
 	  Say Y here if you have synaptics s3207 device connected to your system and want
-	  it to be available to applications. 
+	  it to be available to applications.
 	  Say N here if you have no synaptics s3207 device in your system.
 	  If unsure, say Y.
 	  To compile this driver as a module, choose M here: the
